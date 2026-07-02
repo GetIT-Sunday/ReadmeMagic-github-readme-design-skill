@@ -44,7 +44,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "github-readme-design=readme_magic.cli:main",
+            "readme-magic=readme_magic.cli:main",
         ],
     },
 )
