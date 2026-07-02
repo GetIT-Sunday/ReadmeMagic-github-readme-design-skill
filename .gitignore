@@ -1,0 +1,204 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Build
+build/
+dist/
+*.whl
+*.tar.gz
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs/docs
+site/
+
+# mypy
+.mypy_cache/
+
+# pyright
+pyrightconfig.json
+
+# pytest
+.pytest_cache/
+
+# coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# black
+black-reformatted/
+
+# flake8
+.flake8
+
+# isort
+.isort.cfg
+
+# pre-commit
+.pre-commit-config.yaml
+
+# GitHub Actions
+.github/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Kubernetes
+k8s/
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Ansible
+*.retry
+
+# Vagrant
+.vagrant/
+
+# Packer
+packer_cache/
+
+# Consul
+consul.json
+
+# Vault
+vault.json
+
+# Nomad
+nomad.json
+
+# Waypoint
+.waypoint/
+
+# Boundary
+boundary/
+
+# Packer
+packer_cache/
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Ansible
+*.retry
+
+# Vagrant
+.vagrant/
+
+# Packer
+packer_cache/
+
+# Consul
+consul.json
+
+# Vault
+vault.json
+
+# Nomad
+nomad.json
+
+# Waypoint
+.waypoint/
+
+# Boundary
+boundary/
+
+# Packer
+packer_cache/
