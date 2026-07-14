@@ -153,7 +153,7 @@ Examples:
                       help="Language for descriptions (default: en)")
 
     # ── version ───────────────────────────────────────────────────────────────
-    parser.add_argument("--version", "-v", action="version", version="ReadmeMagic 1.1.0")
+    parser.add_argument("--version", "-v", action="version", version="ReadmeMagic 1.2.0")
 
     args = parser.parse_args()
 
