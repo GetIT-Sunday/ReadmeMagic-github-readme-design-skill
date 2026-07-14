@@ -1,3 +1,4 @@
+<a name="readmemagic"></a>
 <p align="center">
   <h1 align="center">✨ ReadmeMagic</h1>
   <p align="center">
@@ -69,6 +70,8 @@
 
 ## 📦 Installation
 
+> **Prerequisites**: Python 3.8+
+
 ```bash
 # From source
 git clone https://github.com/GetIT-Sunday/ReadmeMagic-github-readme-design-skill.git
@@ -76,16 +79,24 @@ cd ReadmeMagic-github-readme-design-skill
 pip install -e .
 ```
 
+<details>
+<summary><strong>📋 Alternative: install via pip</strong></summary>
+<br>
+
 ```bash
 # Via pip (when published)
 pip install ReadmeMagic
 ```
 
+</details>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
 
 ## 🚀 Usage
 
-### Basic
+**① Generate a basic README**
 
 ```bash
 # English README (default)
@@ -98,7 +109,7 @@ readme-magic generate --project-path ./my-project --lang zh
 readme-magic generate --project-path ./my-project --lang bilingual
 ```
 
-### Choose a template
+**② Choose a template**
 
 ```bash
 readme-magic generate --template ai-project --lang zh
@@ -106,7 +117,7 @@ readme-magic generate --template cli-tool --lang bilingual
 readme-magic generate --template standard --lang en
 ```
 
-### Customize colors and badges
+**③ Customize colors and badges**
 
 ```bash
 readme-magic generate \
@@ -118,11 +129,17 @@ readme-magic generate \
   --star-history --repo "owner/repo"
 ```
 
-### List available templates
+<details>
+<summary><strong>④ List available templates (optional) — click to expand</strong></summary>
+<br>
 
 ```bash
 readme-magic templates
 ```
+
+</details>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
 
 ---
 
@@ -160,29 +177,37 @@ templates/
     └── personal.md
 ```
 
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
 
 ## 📝 Templates
 
-| Template | Best for |
-|----------|----------|
-| `standard` | General open-source projects |
-| `ai-project` | AI / ML / deep learning projects |
-| `cli-tool` | Command-line tools |
-| `library` | Reusable libraries and frameworks |
-| `personal` | Personal portfolio projects |
+<table>
+<tr><th>Template</th><th>Best for</th></tr>
+<tr><td><code>standard</code></td><td>General open-source projects</td></tr>
+<tr><td><code>ai-project</code></td><td>AI / ML / deep learning projects</td></tr>
+<tr><td><code>cli-tool</code></td><td>Command-line tools</td></tr>
+<tr><td><code>library</code></td><td>Reusable libraries and frameworks</td></tr>
+<tr><td><code>personal</code></td><td>Personal portfolio projects</td></tr>
+</table>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
 
 ---
 
 ## 🎨 Color Themes
 
-| Theme | Primary | Secondary | Best for |
-|-------|---------|-----------|----------|
-| Default | `#667eea` | `#764ba2` | General projects |
-| Dark | `#1a1a2e` | `#16213e` | Technical projects |
-| Ocean | `#00b4db` | `#0083b0` | Modern projects |
-| Nature | `#11998e` | `#38ef7d` | Open source tools |
-| Vivid | `#fc5c7d` | `#6a82fb` | Creative projects |
+<table>
+<tr><th>Theme</th><th>Primary</th><th>Secondary</th><th>Best for</th></tr>
+<tr><td>Default</td><td><code>#667eea</code></td><td><code>#764ba2</code></td><td>General projects</td></tr>
+<tr><td>Dark</td><td><code>#1a1a2e</code></td><td><code>#16213e</code></td><td>Technical projects</td></tr>
+<tr><td>Ocean</td><td><code>#00b4db</code></td><td><code>#0083b0</code></td><td>Modern projects</td></tr>
+<tr><td>Nature</td><td><code>#11998e</code></td><td><code>#38ef7d</code></td><td>Open source tools</td></tr>
+<tr><td>Vivid</td><td><code>#fc5c7d</code></td><td><code>#6a82fb</code></td><td>Creative projects</td></tr>
+</table>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
 
 ---
 
@@ -206,9 +231,15 @@ ReadmeMagic/
 └── README.md
 ```
 
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
 
 ## 🧪 Development
+
+<details>
+<summary><strong>Dev setup, tests, and formatting — click to expand</strong></summary>
+<br>
 
 ```bash
 # Install dev dependencies
@@ -221,11 +252,15 @@ pytest
 black readme_magic/
 ```
 
+</details>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are welcome and greatly appreciated! Every contribution helps make ReadmeMagic better.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -233,11 +268,17 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details. Don't forget to give the project a ⭐!
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+Distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
 
 ---
 
@@ -247,10 +288,12 @@ MIT License — see [LICENSE](LICENSE) for details.
 - [star-history.com](https://star-history.com/) — Star History charts
 - [contrib.rocks](https://contrib.rocks/) — contributor avatar wall
 
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
 
 <p align="center">
-  <strong>⭐ If ReadmeMagic saves you time, give it a star!</strong>
+  <sub>If ReadmeMagic saved you time, consider giving it a ⭐ — it helps others discover it too.</sub>
 </p>
 
 <p align="center">
