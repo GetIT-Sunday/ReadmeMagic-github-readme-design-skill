@@ -15,6 +15,7 @@
     <a href="#-usage">Usage</a> •
     <a href="#-templates">Templates</a> •
     <a href="#-language-support">Language Support</a> •
+    <a href="#%EF%B8%8F-banner-auto-generation">Banner</a> •
     <a href="#-examples">Examples</a>
   </p>
 </p>
@@ -139,7 +140,7 @@ readme-magic generate \
   --star-history --repo "owner/repo" \
   --banner assets/banner.png
 
-# Auto-generate banner via GPT Image (dodo AI sandbox)
+# Auto-generate banner — works in two ways (see Banner section below)
 readme-magic generate \
   --template standard \
   --lang en \
@@ -170,6 +171,39 @@ ReadmeMagic supports three language modes, selectable via `--lang`:
 | English | `--lang en` | All section headings and template prose in English (default) |
 | Chinese | `--lang zh` | All section headings and template prose in Chinese (中文) |
 | Bilingual | `--lang bilingual` | English heading + Chinese subtitle for each section |
+
+Each of the 5 templates ships with dedicated EN / ZH / Bilingual variants under:
+
+---
+
+## 🖼️ Banner Auto-generation
+
+`--gen-banner` works **anywhere** — ReadmeMagic tries two backends in order:
+
+| Priority | Backend | Requirement |
+|----------|---------|-------------|
+| 1st | **OpenAI API** | Set `OPENAI_API_KEY` env var |
+| 2nd | **dodo sandbox** | Run inside the dodo AI Agent environment |
+
+```bash
+# Option A — set your OpenAI key (works everywhere)
+export OPENAI_API_KEY=sk-...
+readme-magic generate --template standard --repo "owner/repo" --gen-banner
+
+# Option B — run inside dodo AI sandbox (key pre-configured)
+readme-magic generate --template standard --repo "owner/repo" --gen-banner
+
+# Option C — bring your own image (no key needed)
+readme-magic generate --template standard --banner path/to/banner.png
+```
+
+If neither backend is available, ReadmeMagic prints clear instructions and continues without a banner.
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
+
+## 🌐 Language Templates
 
 Each of the 5 templates ships with dedicated EN / ZH / Bilingual variants under:
 
