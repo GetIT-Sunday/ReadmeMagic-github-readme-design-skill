@@ -27,6 +27,10 @@
   <img src="https://img.shields.io/github/stars/GetIT-Sunday/ReadmeMagic-github-readme-design-skill?style=social" alt="Stars">
 </p>
 
+<p align="center">
+  <strong>English</strong> | <a href="README_ZH.md">中文</a>
+</p>
+
 ---
 
 ## ✨ Features
