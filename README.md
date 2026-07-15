@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.2.0-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.3.0-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/python-3.8+-yellow?style=flat-square" alt="Python">
   <img src="https://img.shields.io/badge/language-EN%20%7C%20ZH%20%7C%20Bilingual-purple?style=flat-square" alt="Language">
@@ -61,6 +61,7 @@
         <li>Single CLI command generates a complete README</li>
         <li><code>{{PLACEHOLDER}}</code>-based templates, easy to customize</li>
         <li>Batch generation via YAML config</li>
+        <li>🖼️ <strong>Banner support</strong>: embed an existing image (<code>--banner</code>) or auto-generate one via GPT Image (<code>--gen-banner</code>)</li>
       </ul>
     </td>
   </tr>
@@ -117,16 +118,25 @@ readme-magic generate --template cli-tool --lang bilingual
 readme-magic generate --template standard --lang en
 ```
 
-**③ Customize colors and badges**
+**③ Customize colors, badges, and banner**
 
 ```bash
+# With an existing banner image
 readme-magic generate \
   --template standard \
   --lang bilingual \
   --primary-color "#667eea" \
   --secondary-color "#764ba2" \
   --badges version,license,python,stars \
-  --star-history --repo "owner/repo"
+  --star-history --repo "owner/repo" \
+  --banner assets/banner.png
+
+# Auto-generate banner via GPT Image (dodo AI sandbox)
+readme-magic generate \
+  --template standard \
+  --lang en \
+  --repo "owner/repo" \
+  --gen-banner
 ```
 
 <details>
