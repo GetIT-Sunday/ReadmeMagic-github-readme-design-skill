@@ -1,6 +1,7 @@
 """ReadmeMagic CLI - One spell, beautiful README"""
 import argparse
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -53,6 +54,64 @@ def _load_template(template: str, lang: str) -> str:
         sys.exit(1)
 
 
+def _generate_banner(repo: str, project_name: str, output_dir: Path) -> str:
+    """Generate a banner image via GPT Image and return the local path.
+
+    Requires the gpt_image.py helper script in the same skill directory, which
+    is present when ReadmeMagic is used inside the dodo AI Agent sandbox.  In a
+    plain Python environment the function returns an empty string and prints a
+    warning so generation continues without a banner.
+    """
+    skill_dir = Path(__file__).parent.parent
+    gpt_image_script = skill_dir / "gpt_image.py"
+    if not gpt_image_script.exists():
+        print(
+            "⚠️  GPT Image helper (gpt_image.py) not found — skipping banner generation.\n"
+            "   You can add a banner manually by placing an image at assets/banner.png\n"
+            "   and using --banner assets/banner.png on the next run.",
+            file=sys.stderr,
+        )
+        return ""
+
+    banner_path = output_dir / "assets" / "banner.png"
+    banner_path.parent.mkdir(parents=True, exist_ok=True)
+
+    owner, repo_name = (repo.split("/") + [""])[:2]
+    prompt = (
+        f"A wide horizontal GitHub repository banner image for a project called "
+        f"'{project_name}'. Dark background (#0d1117 GitHub dark theme). "
+        f"Modern, minimal design with subtle gradient and geometric accents. "
+        f"Project name in large, clean sans-serif white text. "
+        f"No logos of real companies or people. No text other than the project name."
+    )
+
+    print(f"🎨 Generating banner via GPT Image → {banner_path}")
+    result = subprocess.run(
+        [sys.executable, str(gpt_image_script),
+         "--prompt", prompt,
+         "--output", str(banner_path),
+         "--size", "1536x1024"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0 or not banner_path.exists():
+        print(f"⚠️  Banner generation failed: {result.stderr.strip()}", file=sys.stderr)
+        return ""
+
+    print(f"✅ Banner saved → {banner_path}")
+    return "assets/banner.png"
+
+
+def _build_banner(banner_path: str, project_name: str) -> str:
+    """Return the Markdown/HTML block to embed a banner at the top of a README."""
+    if not banner_path:
+        return ""
+    return (
+        f'<a name="{project_name.lower().replace(" ", "-")}"></a>\n'
+        f'<p align="center">\n'
+        f'  <img src="{banner_path}" alt="{project_name} banner" width="100%">\n'
+        f'</p>\n'
+    )
+
 def _generate_readme(args) -> str:
     """Load the selected template and substitute known placeholders."""
     content = _load_template(args.template, args.lang)
@@ -61,11 +120,24 @@ def _generate_readme(args) -> str:
     project_path = Path(args.project_path).resolve()
     project_name = project_path.name if project_path.exists() else args.project_path
 
+    # Banner block
+    banner_md = ""
+    if args.banner:
+        # User supplied an existing path/URL directly
+        banner_md = _build_banner(args.banner, project_name)
+    elif args.gen_banner:
+        output_dir = Path(args.output).parent.resolve()
+        banner_local = _generate_banner(
+            args.repo or f"owner/{project_name}", project_name, output_dir
+        )
+        banner_md = _build_banner(banner_local, project_name)
+
     # Basic placeholder substitutions
     substitutions = {
         "{{PROJECT_NAME}}": project_name,
         "{{PRIMARY_COLOR}}": args.primary_color,
         "{{SECONDARY_COLOR}}": args.secondary_color,
+        "{{BANNER}}": banner_md,
     }
 
     # Badge block
@@ -73,7 +145,7 @@ def _generate_readme(args) -> str:
         badge_list = [b.strip() for b in args.badges.split(",")]
         badge_md = _build_badges(badge_list, args.repo or f"owner/{project_name}")
         substitutions["{{BADGES}}"] = badge_md
-    
+
     # Star History
     if args.star_history and args.repo:
         substitutions["{{STAR_HISTORY}}"] = _build_star_history(args.repo)
@@ -81,7 +153,12 @@ def _generate_readme(args) -> str:
     for key, value in substitutions.items():
         content = content.replace(key, value)
 
+    # Prepend banner before first line if template has no {{BANNER}} placeholder
+    if banner_md and "{{BANNER}}" not in _load_template(args.template, args.lang):
+        content = banner_md + "\n" + content
+
     return content
+
 
 
 def _build_badges(badge_names: list, repo: str) -> str:
@@ -141,6 +218,19 @@ Examples:
     gen.add_argument("--badges", help="Comma-separated badge names: version,license,python,stars,forks,issues")
     gen.add_argument("--star-history", action="store_true", help="Add Star History chart")
     gen.add_argument("--repo", help="GitHub repo (owner/repo) for badges and Star History")
+    gen.add_argument(
+        "--banner",
+        metavar="PATH_OR_URL",
+        help="Path or URL to an existing banner image to embed at the top of the README",
+    )
+    gen.add_argument(
+        "--gen-banner",
+        action="store_true",
+        help=(
+            "Auto-generate a banner image via GPT Image and embed it at the top. "
+            "Requires gpt_image.py in the skill directory (available in the dodo AI sandbox)."
+        ),
+    )
 
     # ── preview ───────────────────────────────────────────────────────────────
     preview = subparsers.add_parser("preview", help="Preview README as HTML")
@@ -153,7 +243,7 @@ Examples:
                       help="Language for descriptions (default: en)")
 
     # ── version ───────────────────────────────────────────────────────────────
-    parser.add_argument("--version", "-v", action="version", version="ReadmeMagic 1.2.0")
+    parser.add_argument("--version", "-v", action="version", version="ReadmeMagic 1.3.0")
 
     args = parser.parse_args()
 
@@ -169,6 +259,10 @@ Examples:
         print(f"   Language  : {lang_label}")
         print(f"   Project   : {args.project_path}")
         print(f"   Output    : {args.output}")
+        if getattr(args, "gen_banner", False):
+            print(f"   Banner    : auto-generate (GPT Image)")
+        elif getattr(args, "banner", None):
+            print(f"   Banner    : {args.banner}")
 
         content = _generate_readme(args)
 
