@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-15
+
+### Added
+
+- ✨ `--banner PATH_OR_URL` flag: embed an existing local image or remote URL as a full-width banner at the top of the generated README.
+- ✨ `--gen-banner` flag: auto-generate a banner via GPT Image (requires `gpt_image.py`, available in the dodo AI Agent sandbox) and embed it automatically.
+- 🔧 `{{BANNER}}` placeholder support in templates — place it anywhere in a template to control exact banner position; falls back to prepending at the top when the placeholder is absent.
+
 ## [1.2.0] - 2026-07-14
 
 ### Fixed
