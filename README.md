@@ -1,5 +1,9 @@
 <a name="readmemagic"></a>
 <p align="center">
+  <img src="assets/banner.png" alt="ReadmeMagic banner" width="100%">
+</p>
+
+<p align="center">
   <h1 align="center">✨ ReadmeMagic</h1>
   <p align="center">
     <strong>One spell, beautiful README — Generate professional GitHub READMEs in seconds</strong><br>
