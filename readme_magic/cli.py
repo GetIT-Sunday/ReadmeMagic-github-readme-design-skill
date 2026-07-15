@@ -54,30 +54,8 @@ def _load_template(template: str, lang: str) -> str:
         sys.exit(1)
 
 
-def _generate_banner(repo: str, project_name: str, output_dir: Path) -> str:
-    """Generate a banner image via GPT Image and return the local path.
-
-    Requires the gpt_image.py helper script in the same skill directory, which
-    is present when ReadmeMagic is used inside the dodo AI Agent sandbox.  In a
-    plain Python environment the function returns an empty string and prints a
-    warning so generation continues without a banner.
-    """
-    skill_dir = Path(__file__).parent.parent
-    gpt_image_script = skill_dir / "gpt_image.py"
-    if not gpt_image_script.exists():
-        print(
-            "⚠️  GPT Image helper (gpt_image.py) not found — skipping banner generation.\n"
-            "   You can add a banner manually by placing an image at assets/banner.png\n"
-            "   and using --banner assets/banner.png on the next run.",
-            file=sys.stderr,
-        )
-        return ""
-
-    banner_path = output_dir / "assets" / "banner.png"
-    banner_path.parent.mkdir(parents=True, exist_ok=True)
-
-    owner, repo_name = (repo.split("/") + [""])[:2]
-    prompt = (
+def _banner_prompt(project_name: str) -> str:
+    return (
         f"A wide horizontal GitHub repository banner image for a project called "
         f"'{project_name}'. Dark background (#0d1117 GitHub dark theme). "
         f"Modern, minimal design with subtle gradient and geometric accents. "
@@ -85,7 +63,67 @@ def _generate_banner(repo: str, project_name: str, output_dir: Path) -> str:
         f"No logos of real companies or people. No text other than the project name."
     )
 
-    print(f"🎨 Generating banner via GPT Image → {banner_path}")
+
+def _generate_banner_via_openai(project_name: str, banner_path: Path, api_key: str) -> bool:
+    """Call OpenAI Images API directly using requests (no openai package required)."""
+    import base64 as _b64
+    import json as _json
+    import urllib.request as _req
+    import urllib.error as _uerr
+
+    prompt = _banner_prompt(project_name)
+    payload = _json.dumps({
+        "model": "gpt-image-1",
+        "prompt": prompt,
+        "size": "1536x1024",
+        "output_format": "png",
+        "quality": "standard",
+    }).encode()
+
+    request = _req.Request(
+        "https://api.openai.com/v1/images/generations",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with _req.urlopen(request, timeout=60) as resp:
+            data = _json.loads(resp.read())
+        b64_data = data["data"][0].get("b64_json")
+        if not b64_data:
+            # Some models return a URL instead
+            url = data["data"][0].get("url")
+            if url:
+                with _req.urlopen(url, timeout=30) as img_resp:
+                    banner_path.write_bytes(img_resp.read())
+                return True
+            return False
+        banner_path.write_bytes(_b64.b64decode(b64_data))
+        return True
+    except _uerr.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        print(f"⚠️  OpenAI API error {e.code}: {body[:200]}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"⚠️  Banner generation error: {e}", file=sys.stderr)
+        return False
+
+
+def _generate_banner_via_dodo(project_name: str, banner_path: Path) -> bool:
+    """Call gpt_image.py from the dodo sandbox environment."""
+    # Try both the skill directory and the known dodo sandbox path
+    candidates = [
+        Path(__file__).parent.parent / "gpt_image.py",
+        Path("/home/gem/workspace/.claude/skills/gpt-image/scripts/gpt_image.py"),
+    ]
+    gpt_image_script = next((p for p in candidates if p.exists()), None)
+    if not gpt_image_script:
+        return False
+
+    prompt = _banner_prompt(project_name)
     result = subprocess.run(
         [sys.executable, str(gpt_image_script),
          "--prompt", prompt,
@@ -93,12 +131,49 @@ def _generate_banner(repo: str, project_name: str, output_dir: Path) -> str:
          "--size", "1536x1024"],
         capture_output=True, text=True,
     )
-    if result.returncode != 0 or not banner_path.exists():
-        print(f"⚠️  Banner generation failed: {result.stderr.strip()}", file=sys.stderr)
-        return ""
+    return result.returncode == 0 and banner_path.exists()
 
-    print(f"✅ Banner saved → {banner_path}")
-    return "assets/banner.png"
+
+def _generate_banner(repo: str, project_name: str, output_dir: Path) -> str:
+    """Generate a banner image and return the local relative path, or '' on failure.
+
+    Resolution order:
+    1. OPENAI_API_KEY env var → call OpenAI Images API directly (works everywhere)
+    2. dodo sandbox gpt_image.py helper → call it via subprocess
+    3. Neither available → print guidance and return ''
+    """
+    banner_path = output_dir / "assets" / "banner.png"
+    banner_path.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"🎨 Generating banner → {banner_path}")
+
+    # ── Strategy 1: OPENAI_API_KEY ────────────────────────────────────────────
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if api_key:
+        print("   Using OPENAI_API_KEY …")
+        if _generate_banner_via_openai(project_name, banner_path, api_key):
+            print(f"✅ Banner saved → {banner_path}")
+            return "assets/banner.png"
+        print("⚠️  OpenAI generation failed, trying dodo sandbox …", file=sys.stderr)
+
+    # ── Strategy 2: dodo sandbox gpt_image.py ────────────────────────────────
+    if _generate_banner_via_dodo(project_name, banner_path):
+        print(f"✅ Banner saved → {banner_path}")
+        return "assets/banner.png"
+
+    # ── Strategy 3: give up with helpful message ──────────────────────────────
+    print(
+        "\n⚠️  --gen-banner could not auto-generate a banner.\n"
+        "   To enable auto-generation, choose one of:\n"
+        "     A) Set OPENAI_API_KEY environment variable (works anywhere)\n"
+        "        export OPENAI_API_KEY=sk-...\n"
+        "     B) Run inside the dodo AI sandbox (gpt_image.py is available there)\n"
+        "\n"
+        "   Alternatively, create a banner manually and use:\n"
+        "        --banner assets/banner.png",
+        file=sys.stderr,
+    )
+    return ""
 
 
 def _build_banner(banner_path: str, project_name: str) -> str:
