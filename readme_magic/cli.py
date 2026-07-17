@@ -1,11 +1,16 @@
 """ReadmeMagic CLI - One spell, beautiful README"""
 import argparse
+import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+from .analyzer import inspect_project
+from .optimizer import optimize_project
+from .quality import analyze_readme
+
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 TEMPLATE_CHOICES = ["standard", "ai-project", "cli-tool", "library", "personal"]
 LANG_CHOICES = ["en", "zh", "bilingual"]
@@ -26,6 +31,49 @@ TEMPLATE_DESCRIPTIONS = {
         "personal":   "个人作品集项目",
     },
 }
+
+
+def _print_report(report) -> None:
+    print(f"README score: {report.score}/{report.max_score}")
+    print("Dimensions: " + " | ".join(
+        f"{name} {value}" for name, value in report.dimensions.items()
+    ))
+    if not report.findings:
+        print("No quality issues found.")
+        return
+    for finding in report.findings:
+        print(f"- [{finding.severity}] {finding.message}")
+        print(f"  {finding.recommendation}")
+
+
+def _print_inspection(metadata) -> None:
+    """Print the evidence inventory used by the README planner."""
+    print(f"Project: {metadata.name}")
+    print(f"Type: {metadata.project_type} (confidence {metadata.type_confidence:.0%})")
+    print(f"Language: {metadata.language}")
+    if metadata.type_reasons:
+        print("Why: " + "; ".join(metadata.type_reasons))
+    labels = {
+        "installation_commands": "Installation",
+        "usage_commands": "Usage",
+        "screenshots": "Screenshots",
+        "demos": "Demos / outputs",
+        "benchmarks": "Benchmarks",
+        "architecture_assets": "Architecture assets",
+        "documentation_links": "Documentation",
+        "contribution_guide": "Contribution guide",
+        "security_policy": "Security policy",
+        "license": "License",
+    }
+    print("Evidence:")
+    for key, label in labels.items():
+        items = metadata.evidence.get(key, [])
+        if items:
+            values = ", ".join(item.value for item in items[:4])
+            suffix = " ..." if len(items) > 4 else ""
+            print(f"- {label}: {values}{suffix}")
+        else:
+            print(f"- {label}: missing")
 
 
 def _template_path(template: str, lang: str) -> Path:
@@ -269,6 +317,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  readme-magic inspect --project-path ./my-project
+  readme-magic analyze --project-path ./my-project
+  readme-magic optimize --project-path ./my-project
+  readme-magic optimize --project-path ./my-project --apply
   readme-magic generate --project-path ./my-project
   readme-magic generate --template ai-project --lang zh
   readme-magic generate --template standard --lang bilingual
@@ -307,6 +359,38 @@ Examples:
         ),
     )
 
+    # -- inspect --------------------------------------------------------------
+    inspect = subparsers.add_parser(
+        "inspect", help="Detect project type and inventory README evidence"
+    )
+    inspect.add_argument("--project-path", "-p", default=".",
+                         help="Path to project (default: current directory)")
+    inspect.add_argument("--json", action="store_true",
+                         help="Print a machine-readable project profile")
+
+    # -- analyze --------------------------------------------------------------
+    analyze = subparsers.add_parser("analyze", help="Score a README and suggest improvements")
+    analyze.add_argument("--project-path", "-p", default=".",
+                         help="Path to project (default: current directory)")
+    analyze.add_argument("--json", action="store_true", help="Print a machine-readable JSON report")
+
+    # -- optimize -------------------------------------------------------------
+    optimize = subparsers.add_parser(
+        "optimize", help="Create a grounded, improved README candidate"
+    )
+    optimize.add_argument("--project-path", "-p", default=".",
+                          help="Path to project (default: current directory)")
+    optimize.add_argument("--output", "-o",
+                          help="Candidate path (default: <project>/README.optimized.md)")
+    optimize.add_argument("--lang", "-l", default="auto", choices=["auto", "en", "zh"],
+                          help="Output language; auto preserves the current README language")
+    optimize.add_argument(
+        "--apply",
+        action="store_true",
+        help="Replace README.md after saving README.md.bak (default: candidate only)",
+    )
+    optimize.add_argument("--json", action="store_true", help="Print a machine-readable result")
+
     # ── preview ───────────────────────────────────────────────────────────────
     preview = subparsers.add_parser("preview", help="Preview README as HTML")
     preview.add_argument("--input", "-i", default="README.md", help="Input README file (default: README.md)")
@@ -318,7 +402,7 @@ Examples:
                       help="Language for descriptions (default: en)")
 
     # ── version ───────────────────────────────────────────────────────────────
-    parser.add_argument("--version", "-v", action="version", version="ReadmeMagic 1.3.0")
+    parser.add_argument("--version", "-v", action="version", version="ReadmeMagic 2.0.0")
 
     args = parser.parse_args()
 
@@ -326,8 +410,67 @@ Examples:
         parser.print_help()
         return
 
-    # ── handle generate ───────────────────────────────────────────────────────
-    if args.command == "generate":
+    # -- handle inspect -------------------------------------------------------
+    if args.command == "inspect":
+        try:
+            metadata = inspect_project(Path(args.project_path))
+        except ValueError as exc:
+            parser.error(str(exc))
+        if args.json:
+            print(json.dumps({"project": metadata.to_dict()}, ensure_ascii=False, indent=2))
+        else:
+            _print_inspection(metadata)
+
+    # -- handle analyze -------------------------------------------------------
+    elif args.command == "analyze":
+        try:
+            metadata = inspect_project(Path(args.project_path))
+        except ValueError as exc:
+            parser.error(str(exc))
+        content = ""
+        if metadata.readme_path:
+            content = Path(metadata.readme_path).read_text(encoding="utf-8")
+        report = analyze_readme(content, metadata.project_type)
+        if args.json:
+            print(json.dumps({"project": metadata.to_dict(), "report": report.to_dict()},
+                             ensure_ascii=False, indent=2))
+        else:
+            print(f"Project: {metadata.name}")
+            print(f"Detected: {metadata.language} | template: {metadata.template}")
+            _print_report(report)
+
+    # -- handle optimize ------------------------------------------------------
+    elif args.command == "optimize":
+        output = Path(args.output).expanduser() if args.output else None
+        try:
+            destination, before, after, metadata = optimize_project(
+                Path(args.project_path), output=output, apply=args.apply, lang=args.lang
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        result = {
+            "project": metadata.to_dict(),
+            "output": str(destination.resolve()),
+            "applied": args.apply,
+            "before": before.to_dict(),
+            "after": after.to_dict(),
+        }
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(f"Optimized README -> {destination.resolve()}")
+            print(f"Score: {before.score}/100 -> {after.score}/100")
+            if after.findings:
+                print("Remaining presentation/content gaps:")
+                for finding in after.findings:
+                    print(f"- {finding.message}: {finding.recommendation}")
+            if args.apply:
+                print("Original backup: README.md.bak")
+            else:
+                print("Review the candidate, then rerun with --apply to replace README.md.")
+
+    # -- handle generate ------------------------------------------------------
+    elif args.command == "generate":
         lang_label = {"en": "English", "zh": "Chinese (中文)", "bilingual": "Bilingual (中英双语)"}[args.lang]
         print(f"✨ Generating README")
         print(f"   Template  : {args.template}")
@@ -342,6 +485,9 @@ Examples:
         content = _generate_readme(args)
 
         output_path = Path(args.output)
+        if not output_path.is_absolute():
+            output_path = Path(args.project_path).expanduser().resolve() / output_path
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(content, encoding="utf-8")
         print(f"✅ README generated → {output_path.resolve()}")
 

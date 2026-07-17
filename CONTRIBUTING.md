@@ -66,7 +66,7 @@ pytest
 ReadmeMagic/
 ├── SKILL.md                    # Skill documentation
 ├── README.md                   # Project README
-├── templates/                  # Template files
+├── readme_magic/templates/     # Packaged template files
 ├── examples/                   # Example READMEs
 ├── src/                        # Source code
 ├── tests/                      # Test suite
@@ -150,7 +150,7 @@ Include:
 
 To add a new template:
 
-1. Create template file in `templates/`
+1. Create the template file in `readme_magic/templates/`
 2. Use `{{PLACEHOLDER}}` for dynamic content
 3. Add example in `examples/`
 4. Update `SKILL.md` documentation
@@ -229,4 +229,3 @@ By contributing, you agree that your contributions will be licensed under the MI
 ## Thank You!
 
 Thank you for contributing to GitHub README Design Skill! Your help is appreciated.
-

@@ -6,11 +6,12 @@
 <p align="center">
   <h1 align="center">✨ ReadmeMagic</h1>
   <p align="center">
-    <strong>One spell, beautiful README — Generate professional GitHub READMEs in seconds</strong><br>
-    <em>一键生成专业 GitHub README，支持中文 / 英文 / 双语三种模式</em>
+    <strong>Turn any repository into a beautiful, high-impact GitHub project page</strong><br>
+    <em>理解真实项目，一键生成更好看、更会展示内容的 README.md</em>
   </p>
   <p align="center">
     <a href="#-features">Features</a> •
+    <a href="#%EF%B8%8F-showcase">Showcase</a> •
     <a href="#-installation">Installation</a> •
     <a href="#-usage">Usage</a> •
     <a href="#-templates">Templates</a> •
@@ -21,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.3.0-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.0.0-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/python-3.8+-yellow?style=flat-square" alt="Python">
   <img src="https://img.shields.io/badge/language-EN%20%7C%20ZH%20%7C%20Bilingual-purple?style=flat-square" alt="Language">
@@ -39,42 +40,58 @@
 <table>
   <tr>
     <td width="50%">
-      <h3>🌐 Bilingual Support</h3>
+      <h3>🔍 Project-aware Analysis</h3>
       <ul>
-        <li>English (<code>--lang en</code>)</li>
-        <li>Chinese (<code>--lang zh</code>)</li>
-        <li>Bilingual side-by-side (<code>--lang bilingual</code>)</li>
+        <li>Detects Python, Node.js, Rust, and Go metadata</li>
+        <li>Finds real install and usage commands</li>
+        <li>Scores content, presentation, onboarding, and trust</li>
       </ul>
     </td>
     <td width="50%">
-      <h3>📝 Template System</h3>
+      <h3>🛡️ Safe Optimization</h3>
       <ul>
-        <li>5 pre-built templates (standard, ai-project, cli-tool, library, personal)</li>
-        <li>Each template available in EN / ZH / Bilingual</li>
+        <li>Creates <code>README.optimized.md</code> by default</li>
+        <li>Preserves useful existing sections</li>
+        <li><code>--apply</code> creates <code>README.md.bak</code></li>
       </ul>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <h3>🎨 Beautiful Design</h3>
+      <h3>🤖 Agent-first Workflow</h3>
       <ul>
-        <li>Professional centered headers</li>
-        <li>Custom color themes for badges</li>
-        <li>Star History chart integration</li>
-        <li>Contributor wall via contrib.rocks</li>
+        <li>Codex-compatible Skill metadata</li>
+        <li>Evidence-first README review protocol</li>
+        <li>Built-in quality gate and safety rules</li>
       </ul>
     </td>
     <td width="50%">
-      <h3>🔧 Easy to Use</h3>
+      <h3>🌐 Templates and Languages</h3>
       <ul>
-        <li>Single CLI command generates a complete README</li>
-        <li><code>{{PLACEHOLDER}}</code>-based templates, easy to customize</li>
-        <li>Batch generation via YAML config</li>
-        <li>🖼️ <strong>Banner support</strong>: embed an existing image (<code>--banner</code>) or auto-generate one via GPT Image (<code>--gen-banner</code>)</li>
+        <li>English and Chinese optimization</li>
+        <li>5 template families with EN / ZH / bilingual variants</li>
+        <li>Optional badges, Star History, and generated banners</li>
       </ul>
     </td>
   </tr>
 </table>
+
+> ReadmeMagic treats README as the project's primary landing page: a strong first screen, real project visuals, scannable highlights, and the shortest verified path to first success.
+
+---
+
+## 🖼️ Showcase
+
+```mermaid
+flowchart LR
+    A[Inspect repository] --> B[Extract project facts]
+    B --> C[Score content and presentation]
+    C --> D[Build a visual README candidate]
+    D --> E[Review remaining gaps]
+    E --> F[Apply with automatic backup]
+```
+
+ReadmeMagic separates deterministic repository evidence from the Agent's editorial work. The CLI builds a safe, grounded candidate; the Agent strengthens the story, visuals, and differentiated capabilities before replacement.
 
 ---
 
@@ -106,7 +123,33 @@ pip install ReadmeMagic
 
 ## 🚀 Usage
 
-**① Generate a basic README**
+**① Inspect project type and repository evidence**
+
+```bash
+readme-magic inspect --project-path ./my-project
+readme-magic inspect --project-path ./my-project --json
+```
+
+The inspection report identifies the project archetype, confidence, source-backed install and usage commands, documentation, policies, and visual evidence such as screenshots or benchmarks.
+
+**② Analyze the current README**
+
+```bash
+readme-magic analyze --project-path ./my-project
+readme-magic analyze --project-path ./my-project --json
+```
+
+**③ Create a safe optimization candidate**
+
+```bash
+# Writes my-project/README.optimized.md; README.md is unchanged
+readme-magic optimize --project-path ./my-project
+
+# Review first, then apply with an automatic README.md.bak backup
+readme-magic optimize --project-path ./my-project --apply
+```
+
+**④ Generate a new README from a template**
 
 ```bash
 # English README (default)
@@ -119,7 +162,7 @@ readme-magic generate --project-path ./my-project --lang zh
 readme-magic generate --project-path ./my-project --lang bilingual
 ```
 
-**② Choose a template**
+**⑤ Choose a template**
 
 ```bash
 readme-magic generate --template ai-project --lang zh
@@ -127,7 +170,7 @@ readme-magic generate --template cli-tool --lang bilingual
 readme-magic generate --template standard --lang en
 ```
 
-**③ Customize colors, badges, and banner**
+**⑥ Customize colors, badges, and banner**
 
 ```bash
 # With an existing banner image
@@ -149,7 +192,7 @@ readme-magic generate \
 ```
 
 <details>
-<summary><strong>④ List available templates (optional) — click to expand</strong></summary>
+<summary><strong>⑥ List available templates (optional) — click to expand</strong></summary>
 <br>
 
 ```bash
@@ -157,6 +200,16 @@ readme-magic templates
 ```
 
 </details>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
+
+## 📖 Documentation
+
+- [`SKILL.md`](SKILL.md) — agent workflow, evidence rules, and safe apply policy
+- [`references/readme-rubric.md`](references/readme-rubric.md) — the 100-point README quality rubric
+- [`README_ZH.md`](README_ZH.md) — complete Chinese documentation
 
 <div align="right"><a href="#readmemagic">↑ back to top</a></div>
 
@@ -208,7 +261,7 @@ If neither backend is available, ReadmeMagic prints clear instructions and conti
 Each of the 5 templates ships with dedicated EN / ZH / Bilingual variants under:
 
 ```
-templates/
+readme_magic/templates/
 ├── en/          # English templates (also used as default)
 │   ├── standard.md
 │   ├── ai-project.md
@@ -269,11 +322,11 @@ templates/
 ReadmeMagic/
 ├── readme_magic/
 │   ├── __init__.py
-│   └── cli.py              # CLI entry point (readme-magic command)
-├── templates/
-│   ├── en/                 # English templates
-│   ├── zh/                 # Chinese templates (中文模板)
-│   └── bilingual/          # Bilingual templates (中英双语模板)
+│   ├── analyzer.py         # Project metadata inspection
+│   ├── optimizer.py        # Safe candidate generation
+│   ├── quality.py          # 100-point README quality checks
+│   ├── cli.py              # CLI entry point
+│   └── templates/          # Packaged EN / ZH / bilingual templates
 ├── examples/
 │   ├── ai-project.md
 │   ├── cli-tool.md
@@ -294,14 +347,8 @@ ReadmeMagic/
 <br>
 
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
 # Run tests
-pytest
-
-# Format code
-black readme_magic/
+python -m unittest discover -s tests -v
 ```
 
 </details>
