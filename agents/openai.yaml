@@ -1,0 +1,4 @@
+interface:
+  display_name: "ReadmeMagic"
+  short_description: "Create beautiful, high-impact GitHub README pages"
+  default_prompt: "Use $readme-magic to inspect this project and create a visually polished README that clearly showcases its value, capabilities, and fastest path to first success."

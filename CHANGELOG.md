@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Explainable project profiles with type, confidence, and classification reasons.
+- Traceable evidence items for commands, visuals, documentation, license, contribution, and security files.
+- `readme-magic inspect` with human-readable and JSON output.
+- Project-type coverage for CLI, product, library, AI, infrastructure, knowledge, and generic repositories.
+- Type-aware quality scoring that separates brand visuals from real project evidence.
+- Preservation of unmanaged README sections and stable generated anchors.
+- A real CLI transcript GIF for the self-test repository example.
+
+## [2.0.0] - 2026-07-16
+
+### Added
+
+- Project-aware inspection for Python, Node.js, Rust, and Go repositories.
+- `readme-magic analyze` with a deterministic 100-point quality report.
+- `readme-magic optimize` with safe candidate output and backed-up `--apply`.
+- Codex-compatible Skill metadata, UI metadata, and a README quality rubric.
+- Unit tests for analyzers, quality checks, optimization, and backup behavior.
+- Showcase-oriented rendering with first-screen hierarchy, feature grids, asset discovery, and screenshot/demo sections.
+- Separate content, presentation, onboarding, and trust dimensions in the README score.
+
+### Changed
+
+- Packaged templates inside `readme_magic/templates` so wheels include them.
+- Synchronized the package and CLI version at 2.0.0.
+- Updated English and Chinese documentation for the agent-first workflow.
+
 ## [1.3.0] - 2026-07-15
 
 ### Added
