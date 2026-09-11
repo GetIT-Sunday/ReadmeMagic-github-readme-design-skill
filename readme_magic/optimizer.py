@@ -171,7 +171,12 @@ def _primary_visual(metadata: ProjectMetadata, existing: str) -> str:
 
 
 def _showcase_assets(metadata: ProjectMetadata, primary: str) -> List[str]:
-    return [path for path in metadata.visual_assets if path != primary][:4]
+    return [
+        path for path in metadata.visual_assets
+        if path != primary and not any(
+            token in path.lower() for token in ("star-history", "star_history", "growth-chart", "growth_chart")
+        )
+    ][:4]
 
 
 def _showcase_has_type_evidence(body: str, project_type: str) -> bool:

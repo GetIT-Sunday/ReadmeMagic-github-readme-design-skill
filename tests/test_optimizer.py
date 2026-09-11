@@ -132,6 +132,18 @@ Please contribute.
             content = render_optimized_readme(inspect_project(project), existing, lang="en")
             self.assertGreater(content.rfind("api.star-history.com"), content.rfind("## 📄 License"))
 
+    def test_star_history_asset_is_not_added_to_showcase(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            (project / "assets").mkdir()
+            (project / "assets" / "star-history.png").write_bytes(b"png")
+            metadata = inspect_project(project)
+            content = render_optimized_readme(metadata, lang="en")
+            showcase_start = content.index("## 🖼️ Showcase")
+            showcase_end = content.index("## 📦 Installation")
+            showcase = content[showcase_start:showcase_end]
+            self.assertNotIn("star-history.png", showcase)
+
     def test_preserves_unmanaged_sections_and_adds_stable_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
