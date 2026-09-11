@@ -317,6 +317,11 @@ def render_optimized_readme(
     license_body = sections.get("license") or license_default
 
     reference_body = sections.get("commands", "")
+    if not reference_body and metadata.project_type == "cli" and metadata.usage_commands:
+        # A CLI needs a scannable command reference even when Quick Start exists.
+        reference_body = (
+            "Verified entry point:\n\n" + _code_block(metadata.usage_commands)
+        )
     preserved = _extract_unmanaged_sections(existing)
 
     header = "\n\n".join(part for part in (_hero(metadata, existing, labels), _badges(metadata)) if part)

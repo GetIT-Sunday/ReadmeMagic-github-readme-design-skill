@@ -99,6 +99,14 @@ hello = "hello:main"
             self.assertIn("<a name=\"architecture\"></a>", content)
             self.assertNotIn('src="assets/generated/architecture.png"', content)
 
+    def test_cli_gets_a_grounded_command_reference(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            metadata = inspect_project(project)
+            content = render_optimized_readme(metadata, lang="en")
+            self.assertIn("## 🧭 Command Reference", content)
+            self.assertIn("hello --help", content)
+
     def test_preserves_unmanaged_sections_and_adds_stable_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
