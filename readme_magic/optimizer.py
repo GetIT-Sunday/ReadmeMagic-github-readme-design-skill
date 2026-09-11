@@ -341,6 +341,13 @@ def _asset_section(manifest: Optional[AssetManifest], key: str, is_zh: bool) -> 
     return ""
 
 
+def _has_materialized_asset(manifest: Optional[AssetManifest]) -> bool:
+    return bool(
+        manifest
+        and any(asset.status in ("generated", "available") and asset.path for asset in manifest.assets)
+    )
+
+
 def _insert_before_section(content: str, block: str, section_key: str) -> str:
     """Insert a new H2 block without changing the surrounding section design."""
     aliases = SECTION_KEYS[section_key]
@@ -429,6 +436,11 @@ def render_optimized_readme(
 
     if existing and _has_polished_header(existing):
         current_report = analyze_readme(existing, metadata.project_type)
+        if current_report.score >= 95 and not runtime_demo and not _has_materialized_asset(asset_manifest):
+            # A strong README is already a successful design. A no-op candidate
+            # is safer than adding low-signal assets or a generic section just
+            # to increase the numeric rubric score.
+            return existing
         if current_report.score >= 85:
             return _render_conservative_readme(
                 metadata,

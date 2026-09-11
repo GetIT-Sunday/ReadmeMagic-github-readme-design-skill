@@ -31,6 +31,7 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 - Preserve detailed sections whose content remains correct. Reorganize them when that improves scanning.
 - Treat an existing README that already passes the 85-point quality gate and has a branded first screen as a project-owned design. Improve it surgically: fill evidenced gaps, but preserve its section titles, order, navigation, language switch, and back-to-top controls unless a specific defect requires changing them.
 - A higher rubric score is not proof of a better README. Reject candidates that regress brand identity, visual hierarchy, readability, or useful navigation even when their numeric score increases.
+- For an existing README scoring 95 or higher, allow a no-op candidate. Do not add a generic command section, discovered GIF, or decorative asset unless it fixes a concrete user-facing gap or the user explicitly requests it.
 - For visual products, treat a missing screenshot as a blocking presentation gap. For infrastructure or libraries, use a real architecture or usage-flow diagram when it materially improves understanding.
 - Keep badges limited to useful, verifiable signals. Do not use badge walls or decorative animation by default.
 - Match the existing project language unless the user requests another language. For bilingual output, keep each section easy to scan rather than duplicating the entire document line by line.

@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from markdown_it import MarkdownIt
+
 from .analyzer import inspect_project
 from .assets import DEFAULT_CONFIG, IMAGE_MODES, load_image_config
 from .optimizer import optimize_project
@@ -315,65 +317,17 @@ def _build_star_history(repo: str) -> str:
 
 
 def _markdown_to_html(markdown: str) -> str:
-    """Small dependency-free renderer for local README review."""
-    output = []
-    in_code = False
-    code_lines = []
-    code_language = ""
-    for raw in markdown.splitlines():
-        line = raw.rstrip()
-        if line.startswith("```"):
-            if in_code:
-                code = html_lib.escape("\n".join(code_lines))
-                if code_language == "mermaid":
-                    output.append('<div class="mermaid">' + code + "</div>")
-                else:
-                    output.append("<pre><code>" + code + "</code></pre>")
-                code_lines = []
-                code_language = ""
-                in_code = False
-            else:
-                in_code = True
-                code_language = line[3:].strip().lower()
-            continue
-        if in_code:
-            code_lines.append(line)
-            continue
-        if not line.strip():
-            continue
-        # README files commonly use HTML for centered banners and image grids.
-        # Keep presentation HTML visible in the local preview.
-        if re.search(r"<\/?(?:img|p|div|table|tr|td|th|thead|tbody|tfoot|a|strong|em|br|details|summary|h[1-6]|ul|ol|li|code|pre|blockquote|sub|sup|span|small)\b", line, re.I):
-            output.append(line)
-            continue
-        if line.startswith("---"):
-            output.append("<hr>")
-            continue
-        heading = re.match(r"^(#{1,6})\s+(.+)$", line)
-        if heading:
-            level = len(heading.group(1))
-            output.append(f"<h{level}>{html_lib.escape(heading.group(2))}</h{level}>")
-            continue
-        image = re.fullmatch(r"!\[([^]]*)\]\(([^)]+)\)", line.strip())
-        if image:
-            alt, src = image.groups()
-            output.append(f'<p><img src="{html_lib.escape(src, quote=True)}" alt="{html_lib.escape(alt, quote=True)}"></p>')
-            continue
-        if re.match(r"^[-*]\s+", line):
-            item = re.sub(r"^[-*]\s+", "", line)
-            if not output or not output[-1].startswith("<ul>"):
-                output.append("<ul>")
-            output.append("<li>" + html_lib.escape(item) + "</li>")
-            continue
-        text = html_lib.escape(line)
-        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
-        output.append("<p>" + text + "</p>")
-    if in_code:
-        code = html_lib.escape("\n".join(code_lines))
-        output.append('<div class="mermaid">' + code + "</div>" if code_language == "mermaid" else "<pre><code>" + code + "</code></pre>")
-    if output and output[-1].startswith("<li>"):
-        output.append("</ul>")
-    return "\n".join(output)
+    """Render GitHub-like Markdown while preserving README presentation HTML."""
+    renderer = MarkdownIt("commonmark", {"html": True}).enable(["table", "strikethrough"])
+    rendered = renderer.render(markdown)
+    # Mermaid needs a div for the browser-side Mermaid runtime rather than a
+    # normal fenced-code block.
+    return re.sub(
+        r'<pre><code class="language-mermaid">(.*?)</code></pre>',
+        r'<div class="mermaid">\1</div>',
+        rendered,
+        flags=re.S,
+    )
 
 
 def _heading_titles(markdown: str) -> list:

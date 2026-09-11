@@ -116,6 +116,7 @@ demo = "demo:main"
             preview = (project / "preview.html").read_text(encoding="utf-8")
             self.assertIn("<h3>Project-aware Analysis</h3>", preview)
             self.assertIn('<a href="README_ZH.md">中文</a>', preview)
+            self.assertIn("<table>", preview)
             self.assertNotIn("&lt;h3&gt;", preview)
 
 
