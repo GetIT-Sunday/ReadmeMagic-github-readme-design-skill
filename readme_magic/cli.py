@@ -319,15 +319,22 @@ def _markdown_to_html(markdown: str) -> str:
     output = []
     in_code = False
     code_lines = []
+    code_language = ""
     for raw in markdown.splitlines():
         line = raw.rstrip()
         if line.startswith("```"):
             if in_code:
-                output.append("<pre><code>" + html_lib.escape("\n".join(code_lines)) + "</code></pre>")
+                code = html_lib.escape("\n".join(code_lines))
+                if code_language == "mermaid":
+                    output.append('<div class="mermaid">' + code + "</div>")
+                else:
+                    output.append("<pre><code>" + code + "</code></pre>")
                 code_lines = []
+                code_language = ""
                 in_code = False
             else:
                 in_code = True
+                code_language = line[3:].strip().lower()
             continue
         if in_code:
             code_lines.append(line)
@@ -362,7 +369,8 @@ def _markdown_to_html(markdown: str) -> str:
         text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
         output.append("<p>" + text + "</p>")
     if in_code:
-        output.append("<pre><code>" + html_lib.escape("\n".join(code_lines)) + "</code></pre>")
+        code = html_lib.escape("\n".join(code_lines))
+        output.append('<div class="mermaid">' + code + "</div>" if code_language == "mermaid" else "<pre><code>" + code + "</code></pre>")
     if output and output[-1].startswith("<li>"):
         output.append("</ul>")
     return "\n".join(output)
@@ -456,7 +464,7 @@ def _preview_html(
 <title>ReadmeMagic GitHub README preview</title>
 <style>
 :root{color-scheme:light dark}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55;margin:0;background:#f6f8fa;color:#24292f}.comparison-wrap,.single-wrap{max-width:1480px;margin:0 auto;padding:24px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px}.github-markdown{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:32px;min-width:0;box-shadow:0 1px 2px rgba(27,31,36,.04)}.file-label{font:600 13px ui-monospace,SFMono-Regular,monospace;color:#57606a;background:#f6f8fa;border-bottom:1px solid #d0d7de;margin:-32px -32px 24px;padding:10px 14px;border-radius:6px 6px 0 0}.candidate-label{color:#0969da}.github-markdown h1,.github-markdown h2,.github-markdown h3{line-height:1.25;border-bottom:1px solid #d8dee4;padding-bottom:.3em}.github-markdown h1{font-size:2em}.github-markdown h2{font-size:1.5em;margin-top:24px}.github-markdown h3{font-size:1.25em;border-bottom:0}.github-markdown img{max-width:100%;height:auto}.github-markdown pre{overflow:auto;background:#f6f8fa;padding:16px;border-radius:6px}.github-markdown code{font-family:ui-monospace,SFMono-Regular,monospace;background:#afb8c133;padding:.2em .4em;border-radius:6px}.github-markdown pre code{background:transparent;padding:0}.github-markdown table{border-collapse:collapse;width:100%;display:block;overflow:auto}.github-markdown td,.github-markdown th{border:1px solid #d0d7de;padding:6px 13px}.audit-panel{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:20px;margin-bottom:16px}.audit-panel h2{margin:0 0 14px}.metrics{display:flex;flex-wrap:wrap;gap:10px}.metrics div{min-width:110px;padding:10px 12px;background:#f6f8fa;border-radius:6px}.metrics strong,.metrics span{display:block}.metrics strong{font-size:20px}.metrics span{font-size:12px;color:#57606a}.change-columns{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:18px}.change-columns h3{font-size:13px;margin-bottom:4px}.change-columns ul{margin-top:4px;padding-left:20px}.muted,.audit-note{color:#57606a}.audit-note{font-size:13px;margin:18px 0 0}.single-wrap{max-width:1000px}@media(max-width:900px){.comparison{display:block}.github-markdown+ .github-markdown{margin-top:16px}.change-columns{grid-template-columns:1fr}}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}.github-markdown,.audit-panel{background:#161b22;border-color:#30363d}.file-label,.metrics div{background:#0d1117;border-color:#30363d}.github-markdown pre{background:#0d1117}.github-markdown td,.github-markdown th{border-color:#30363d}.metrics span,.muted,.audit-note{color:#8b949e}}
-</style></head><body>""" + body + "</body></html>"
+</style><script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script><script>if(window.mermaid){mermaid.initialize({startOnLoad:true,theme:'base'});}</script></head><body>""" + body + "</body></html>"
 
 
 def main():

@@ -85,6 +85,19 @@ demo = "demo:main"
             self.assertIn("Candidate score", preview)
             self.assertNotIn("From source", result["preview"]["summary"]["added_sections"])
 
+    def test_preview_marks_mermaid_blocks_for_rendering(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            readme = project / "README.md"
+            readme.write_text("# Demo\n\n```mermaid\nflowchart LR\n A --> B\n```\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "preview", "-p", str(project), "-i", "README.md", "-o", "preview.html"]):
+                with redirect_stdout(io.StringIO()):
+                    main()
+            preview = (project / "preview.html").read_text(encoding="utf-8")
+            self.assertIn('class="mermaid"', preview)
+            self.assertIn("mermaid.initialize", preview)
+
 
 if __name__ == "__main__":
     unittest.main()
