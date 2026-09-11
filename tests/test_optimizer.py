@@ -107,6 +107,31 @@ hello = "hello:main"
             self.assertIn("## 🧭 Command Reference", content)
             self.assertIn("hello --help", content)
 
+    def test_existing_star_history_block_is_moved_to_document_end(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            existing = """# hello
+
+## Acknowledgments
+
+Thanks.
+
+<p align="center">
+  <sub>If hello saved you time, consider giving it a ⭐ — it helps others discover it too.</sub>
+</p>
+<p align="center">
+  <a href="https://star-history.com/#owner/hello&Date">
+    <img src="https://api.star-history.com/svg?repos=owner/hello&type=Date" alt="Star History Chart" width="600">
+  </a>
+</p>
+
+## Contributing
+
+Please contribute.
+"""
+            content = render_optimized_readme(inspect_project(project), existing, lang="en")
+            self.assertGreater(content.rfind("api.star-history.com"), content.rfind("## 📄 License"))
+
     def test_preserves_unmanaged_sections_and_adds_stable_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)

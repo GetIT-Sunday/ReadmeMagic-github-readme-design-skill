@@ -62,6 +62,27 @@ def _extract_unmanaged_sections(content: str) -> List[Tuple[str, str]]:
     return preserved
 
 
+def _closing_star_history(content: str) -> str:
+    """Return an existing Star History CTA/chart block for terminal placement."""
+    match = re.search(
+        r'(?is)\n*<p\s+align="center">\s*<sub>.*?giving it a .*?</sub>\s*</p>\s*'
+        r'<p\s+align="center">\s*<a\s+href="https://star-history\.com/[^" ]+".*?</p>',
+        content,
+    )
+    return match.group(0).strip() if match else ""
+
+
+def _without_closing_star_history(content: str) -> str:
+    if not _closing_star_history(content):
+        return content
+    return re.sub(
+        r'(?is)\n*<p\s+align="center">\s*<sub>.*?giving it a .*?</sub>\s*</p>\s*'
+        r'<p\s+align="center">\s*<a\s+href="https://star-history\.com/[^" ]+".*?</p>',
+        "\n",
+        content,
+    )
+
+
 def _detect_language(existing: str, requested: str) -> str:
     if requested in ("en", "zh"):
         return requested
@@ -276,7 +297,9 @@ def render_optimized_readme(
     asset_manifest: Optional[AssetManifest] = None,
 ) -> str:
     lang = _detect_language(existing, lang)
-    sections = _extract_sections(existing)
+    closing_visual = _closing_star_history(existing)
+    sections_source = _without_closing_star_history(existing)
+    sections = _extract_sections(sections_source)
     is_zh = lang == "zh"
     labels = {
         "features": "核心亮点" if is_zh else "Highlights",
@@ -322,7 +345,7 @@ def render_optimized_readme(
         reference_body = (
             "Verified entry point:\n\n" + _code_block(metadata.usage_commands)
         )
-    preserved = _extract_unmanaged_sections(existing)
+    preserved = _extract_unmanaged_sections(sections_source)
 
     header = "\n\n".join(part for part in (_hero(metadata, existing, labels), _badges(metadata)) if part)
     blocks = [
@@ -354,6 +377,8 @@ def render_optimized_readme(
         _section(labels['contributing'], "🤝", contributing),
         _section(labels['license'], "📄", license_body),
     ])
+    if closing_visual:
+        blocks.append(closing_visual)
     if not primary:
         blocks.insert(1, "<!-- Add a real project banner, product screenshot, or architecture image to strengthen the first screen. -->")
     return "\n\n---\n\n".join(block.strip() for block in blocks if block.strip()) + "\n"
