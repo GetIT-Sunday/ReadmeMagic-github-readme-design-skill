@@ -160,6 +160,8 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 ## Unreleased
 
+- Make `optimize` generate a GitHub-like before/after review page with scores, line counts, section changes, and asset status.
+- Require the review artifact in the Skill workflow before apply, commit, or push.
 - Add project-aware visual asset planning for overview, architecture, and workflow visuals.
 - Add `api`, `prompt_only`, and `disabled` image generation modes with `.readme-magic.json` configuration.
 - Add lightweight LaTeX paper context extraction and optional-skill capability detection.

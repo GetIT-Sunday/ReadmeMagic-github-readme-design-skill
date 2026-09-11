@@ -57,6 +57,34 @@ demo = "demo:main"
             self.assertIn("comparison", preview)
             self.assertIn("README.optimized.md", preview)
 
+    def test_optimize_creates_review_page_with_change_summary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "pyproject.toml").write_text(
+                """[project]
+name = "demo"
+description = "A small command line demo."
+
+[project.scripts]
+demo = "demo:main"
+""", encoding="utf-8"
+            )
+            (project / "README.md").write_text("# Demo\n\nOriginal description.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+            preview_path = Path(result["preview"]["path"])
+            self.assertTrue(preview_path.exists())
+            preview = preview_path.read_text(encoding="utf-8")
+            self.assertIn("What changed", preview)
+            self.assertIn("README.md", preview)
+            self.assertIn("README.optimized.md", preview)
+            self.assertIn("Original score", preview)
+            self.assertIn("Candidate score", preview)
+            self.assertNotIn("From source", result["preview"]["summary"]["added_sections"])
+
 
 if __name__ == "__main__":
     unittest.main()

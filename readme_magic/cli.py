@@ -1,5 +1,6 @@
 """ReadmeMagic CLI - One spell, beautiful README"""
 import argparse
+import difflib
 import html as html_lib
 import json
 import os
@@ -367,23 +368,94 @@ def _markdown_to_html(markdown: str) -> str:
     return "\n".join(output)
 
 
-def _preview_html(primary: str, primary_name: str, comparison: str = "", comparison_name: str = "") -> str:
+def _heading_titles(markdown: str) -> list:
+    # Ignore fenced examples so shell comments are not reported as README sections.
+    markdown = re.sub(r"(?ms)^```[^\n]*\n.*?^```\s*$", "", markdown)
+    return [
+        re.sub(r"[`*_]", "", match.group(2)).strip()
+        for match in re.finditer(r"(?m)^(#{1,6})\s+(.+?)\s*$", markdown)
+    ]
+
+
+def _preview_summary(before: str, after: str, before_score=None, after_score=None) -> dict:
+    before_titles = _heading_titles(before)
+    after_titles = _heading_titles(after)
+    before_set = set(before_titles)
+    after_set = set(after_titles)
+    ratio = difflib.SequenceMatcher(None, before, after).ratio()
+    summary = {
+        "before_lines": len(before.splitlines()),
+        "after_lines": len(after.splitlines()),
+        "similarity": round(ratio, 3),
+        "added_sections": [title for title in after_titles if title not in before_set],
+        "removed_sections": [title for title in before_titles if title not in after_set],
+        "preserved_sections": [title for title in after_titles if title in before_set],
+    }
+    if before_score is not None:
+        summary["before_score"] = before_score
+    if after_score is not None:
+        summary["after_score"] = after_score
+    return summary
+
+
+def _summary_panel(summary: dict) -> str:
+    if not summary:
+        return ""
+    before_score = summary.get("before_score", "-")
+    after_score = summary.get("after_score", "-")
+    similarity = "{:.0%}".format(summary.get("similarity", 0))
+
+    def items(values, empty="None"):
+        return "".join(f"<li>{html_lib.escape(value)}</li>" for value in values) or f"<li class=\"muted\">{empty}</li>"
+
+    asset_statuses = summary.get("asset_statuses", {})
+    asset_text = ", ".join(f"{key}: {value}" for key, value in sorted(asset_statuses.items())) or "Not generated"
+
+    return (
+        '<aside class="audit-panel">'
+        '<h2>What changed</h2>'
+        '<div class="metrics">'
+        f'<div><strong>{html_lib.escape(str(before_score))}</strong><span>Original score</span></div>'
+        f'<div><strong>{html_lib.escape(str(after_score))}</strong><span>Candidate score</span></div>'
+        f'<div><strong>{html_lib.escape(str(summary.get("before_lines", 0)))}</strong><span>Original lines</span></div>'
+        f'<div><strong>{html_lib.escape(str(summary.get("after_lines", 0)))}</strong><span>Candidate lines</span></div>'
+        f'<div><strong>{similarity}</strong><span>Text similarity</span></div>'
+        '</div>'
+        '<div class="change-columns">'
+        f'<div><h3>Added sections ({len(summary.get("added_sections", []))})</h3><ul>{items(summary.get("added_sections", []))}</ul></div>'
+        f'<div><h3>Removed sections ({len(summary.get("removed_sections", []))})</h3><ul>{items(summary.get("removed_sections", []))}</ul></div>'
+        f'<div><h3>Preserved sections ({len(summary.get("preserved_sections", []))})</h3><ul>{items(summary.get("preserved_sections", []))}</ul></div>'
+        '</div>'
+        f'<p class="audit-note"><strong>Visual assets:</strong> {html_lib.escape(asset_text)}<br>Review the candidate and this change summary before applying or pushing it.</p>'
+        '</aside>'
+    )
+
+
+def _preview_html(
+    primary: str,
+    primary_name: str,
+    comparison: str = "",
+    comparison_name: str = "",
+    summary: dict = None,
+) -> str:
     primary_html = _markdown_to_html(primary)
+    panel = _summary_panel(summary or {})
     if comparison:
         comparison_html = _markdown_to_html(comparison)
         body = (
-            '<main class="comparison">'
-            f'<section><h2>{html_lib.escape(primary_name)}</h2>{primary_html}</section>'
-            f'<section><h2>{html_lib.escape(comparison_name)}</h2>{comparison_html}</section>'
-            '</main>'
+            '<main class="comparison-wrap">'
+            f'{panel}<div class="comparison">'
+            f'<section class="github-markdown"><div class="file-label">{html_lib.escape(primary_name)}</div>{primary_html}</section>'
+            f'<section class="github-markdown"><div class="file-label candidate-label">{html_lib.escape(comparison_name)}</div>{comparison_html}</section>'
+            '</div></main>'
         )
     else:
-        body = f'<main><h2>{html_lib.escape(primary_name)}</h2>{primary_html}</main>'
+        body = f'<main class="single-wrap">{panel}<section class="github-markdown"><div class="file-label">{html_lib.escape(primary_name)}</div>{primary_html}</section></main>'
     return """<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReadmeMagic preview</title>
+<title>ReadmeMagic GitHub README preview</title>
 <style>
-:root{color-scheme:light dark}body{font-family:system-ui,-apple-system,sans-serif;line-height:1.55;margin:0;background:#f6f8fa;color:#24292f}main{max-width:980px;margin:2rem auto;padding:2rem;background:#fff;border:1px solid #d0d7de;border-radius:8px}main.comparison{max-width:1400px;display:grid;grid-template-columns:1fr 1fr;gap:1rem;background:transparent;border:0;padding:1rem}section{background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:1.5rem;min-width:0}h1,h2,h3{line-height:1.25}img{max-width:100%;height:auto}pre{overflow:auto;background:#f6f8fa;padding:1rem;border-radius:6px}code{font-family:ui-monospace,SFMono-Regular,monospace}@media(max-width:800px){main.comparison{display:block}section+section{margin-top:1rem}}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}main,section{background:#161b22;border-color:#30363d}pre{background:#0d1117}}
+:root{color-scheme:light dark}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55;margin:0;background:#f6f8fa;color:#24292f}.comparison-wrap,.single-wrap{max-width:1480px;margin:0 auto;padding:24px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px}.github-markdown{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:32px;min-width:0;box-shadow:0 1px 2px rgba(27,31,36,.04)}.file-label{font:600 13px ui-monospace,SFMono-Regular,monospace;color:#57606a;background:#f6f8fa;border-bottom:1px solid #d0d7de;margin:-32px -32px 24px;padding:10px 14px;border-radius:6px 6px 0 0}.candidate-label{color:#0969da}.github-markdown h1,.github-markdown h2,.github-markdown h3{line-height:1.25;border-bottom:1px solid #d8dee4;padding-bottom:.3em}.github-markdown h1{font-size:2em}.github-markdown h2{font-size:1.5em;margin-top:24px}.github-markdown h3{font-size:1.25em;border-bottom:0}.github-markdown img{max-width:100%;height:auto}.github-markdown pre{overflow:auto;background:#f6f8fa;padding:16px;border-radius:6px}.github-markdown code{font-family:ui-monospace,SFMono-Regular,monospace;background:#afb8c133;padding:.2em .4em;border-radius:6px}.github-markdown pre code{background:transparent;padding:0}.github-markdown table{border-collapse:collapse;width:100%;display:block;overflow:auto}.github-markdown td,.github-markdown th{border:1px solid #d0d7de;padding:6px 13px}.audit-panel{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:20px;margin-bottom:16px}.audit-panel h2{margin:0 0 14px}.metrics{display:flex;flex-wrap:wrap;gap:10px}.metrics div{min-width:110px;padding:10px 12px;background:#f6f8fa;border-radius:6px}.metrics strong,.metrics span{display:block}.metrics strong{font-size:20px}.metrics span{font-size:12px;color:#57606a}.change-columns{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:18px}.change-columns h3{font-size:13px;margin-bottom:4px}.change-columns ul{margin-top:4px;padding-left:20px}.muted,.audit-note{color:#57606a}.audit-note{font-size:13px;margin:18px 0 0}.single-wrap{max-width:1000px}@media(max-width:900px){.comparison{display:block}.github-markdown+ .github-markdown{margin-top:16px}.change-columns{grid-template-columns:1fr}}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}.github-markdown,.audit-panel{background:#161b22;border-color:#30363d}.file-label,.metrics div{background:#0d1117;border-color:#30363d}.github-markdown pre{background:#0d1117}.github-markdown td,.github-markdown th{border-color:#30363d}.metrics span,.muted,.audit-note{color:#8b949e}}
 </style></head><body>""" + body + "</body></html>"
 
 
@@ -474,6 +546,10 @@ Examples:
                           help="Image model name (default: configured model)")
     optimize.add_argument("--image-config", default=None,
                           help="Path to a JSON image-generation config")
+    optimize.add_argument("--preview-output", default="README.preview.html",
+                          help="HTML review path (default: <project>/README.preview.html)")
+    optimize.add_argument("--no-preview", action="store_true",
+                          help="Skip automatic before/after HTML review generation")
     optimize.add_argument("--json", action="store_true", help="Print a machine-readable result")
 
     # ── preview ───────────────────────────────────────────────────────────────
@@ -556,11 +632,37 @@ Examples:
         manifest_path = Path(metadata.path) / "artifacts" / "asset-manifest.json"
         if manifest_path.exists():
             result["asset_manifest"] = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not args.no_preview:
+            project = Path(metadata.path)
+            preview_path = Path(args.preview_output).expanduser()
+            if not preview_path.is_absolute():
+                preview_path = project / preview_path
+            if args.apply:
+                before_path = project / "README.md.bak"
+            else:
+                before_path = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
+            before_content = before_path.read_text(encoding="utf-8") if before_path.exists() else ""
+            after_content = destination.read_text(encoding="utf-8")
+            summary = _preview_summary(before_content, after_content, before.score, after.score)
+            if manifest_path.exists():
+                statuses = {}
+                for asset in result["asset_manifest"].get("assets", []):
+                    status = asset.get("status", "unknown")
+                    statuses[status] = statuses.get(status, 0) + 1
+                summary["asset_statuses"] = statuses
+            preview_path.parent.mkdir(parents=True, exist_ok=True)
+            preview_path.write_text(
+                _preview_html(before_content, before_path.name, after_content, destination.name, summary),
+                encoding="utf-8",
+            )
+            result["preview"] = {"path": str(preview_path.resolve()), "summary": summary}
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             print(f"Optimized README -> {destination.resolve()}")
             print(f"Score: {before.score}/100 -> {after.score}/100")
+            if result.get("preview"):
+                print(f"Visual review -> {result['preview']['path']}")
             if manifest_path.exists():
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 statuses = {}

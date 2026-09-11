@@ -149,6 +149,16 @@ readme-magic optimize --project-path ./my-project
 readme-magic optimize --project-path ./my-project --apply
 ```
 
+Every optimization creates `README.preview.html` by default. It shows the original README and candidate in a GitHub-like layout, with score changes, line counts, changed sections, preserved sections, and visual asset status. Review this page before applying, committing, or pushing changes.
+
+```bash
+# Create a side-by-side review page at a custom path
+readme-magic optimize --project-path ./my-project --preview-output README.review.html
+
+# Opt out only for automated callers that already render their own review
+readme-magic optimize --project-path ./my-project --no-preview
+```
+
 By default, optimization uses `prompt_only` visual planning: it writes an asset manifest and image prompts without requiring an image API. Generated images are never presented as runtime evidence unless the user supplies or creates them.
 
 ```bash
