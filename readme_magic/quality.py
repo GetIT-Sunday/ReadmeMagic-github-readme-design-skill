@@ -180,13 +180,16 @@ def _type_recommendations(project_type: str) -> Dict[str, str]:
 def _has_unresolved_gaps(content: str, prose: str) -> bool:
     placeholder = bool(re.search(r"\{\{[A-Z0-9_]+\}\}|\bTODO\b|<YOUR[_ -]", prose, re.I))
     gap_markers = (
-        "before publishing",
         "no project screenshot is available yet",
         "add a real project banner",
         "发布前请",
         "暂无项目截图",
     )
-    return placeholder or any(marker in content.lower() for marker in gap_markers)
+    explicit_publish_gap = bool(re.search(
+        r"(?i)\b(?:add|define|resolve|provide)\b[^.\n]{0,140}\bbefore publishing\b",
+        content,
+    ))
+    return placeholder or explicit_publish_gap or any(marker in content.lower() for marker in gap_markers)
 
 
 def _has_navigation(content: str) -> bool:
