@@ -95,9 +95,81 @@ hello = "hello:main"
             project = self._project(directory)
             destination, _, _, _ = optimize_project(project, lang="en")
             content = destination.read_text(encoding="utf-8")
-            self.assertIn("artifacts/prompts/architecture.prompt.md", content)
-            self.assertIn("<a name=\"architecture\"></a>", content)
+            self.assertTrue((project / "artifacts" / "prompts" / "architecture.prompt.md").exists())
+            self.assertNotIn("Image prompt ready", content)
             self.assertNotIn('src="assets/generated/architecture.png"', content)
+
+    def test_preserves_polished_existing_hero_instead_of_rebuilding_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            existing = """<p align=\"center\"><img src=\"assets/banner.png\" alt=\"Original banner\"></p>
+
+<p align=\"center\"><h1>Original Brand</h1><em>Original Chinese tagline</em></p>
+
+<p align=\"center\"><strong>English</strong> | <a href=\"README_ZH.md\">中文</a></p>
+"""
+            content = render_optimized_readme(inspect_project(project), existing, lang="en")
+            self.assertIn("Original Brand", content)
+            self.assertIn("Original Chinese tagline", content)
+            self.assertIn('README_ZH.md">中文</a>', content)
+            self.assertEqual(content.count("Original banner"), 1)
+            self.assertNotIn("img.shields.io/badge/version", content)
+
+    def test_high_quality_readme_gets_surgical_cli_improvements(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            (project / "assets").mkdir()
+            (project / "assets" / "banner.png").write_bytes(b"png")
+            (project / "assets" / "cli-demo.gif").write_bytes(b"GIF89a")
+            existing = """<p align="center"><img src="assets/banner.png" alt="Brand"></p>
+
+# Original Brand
+
+<p align="center"><strong>English</strong> | <a href="README_ZH.md">中文</a></p>
+
+<p align="center"><a href="#features">Features</a> · <a href="#showcase">Showcase</a> · <a href="#usage">Usage</a> · <a href="#documentation">Documentation</a></p>
+
+## Features
+- Repository-aware analysis
+- Safe candidate generation
+- Visual review
+
+## Showcase
+```mermaid
+flowchart LR
+  A --> B
+```
+
+<p align="center"><img src="assets/cli-demo.gif" alt="CLI demo"></p>
+
+## Installation
+```bash
+pip install -e .
+```
+
+## Usage
+```bash
+hello --help
+```
+
+## Documentation
+See `docs/` for details.
+
+## Contributing
+Issues and pull requests are welcome.
+
+## License
+MIT
+"""
+            content = render_optimized_readme(inspect_project(project), existing, lang="en")
+            self.assertIn("# Original Brand", content)
+            self.assertIn("## Features", content)
+            self.assertIn("## Usage", content)
+            self.assertNotIn("## ✨ Highlights", content)
+            self.assertIn("assets/cli-demo.gif", content)
+            self.assertIn("## 🧭 Command Reference", content)
+            self.assertLess(content.index("## 🧭 Command Reference"), content.index("## Documentation"))
+            self.assertNotIn("---\n\n---\n\n<p align=\"center\">", content)
 
     def test_cli_gets_a_grounded_command_reference(self):
         with tempfile.TemporaryDirectory() as directory:

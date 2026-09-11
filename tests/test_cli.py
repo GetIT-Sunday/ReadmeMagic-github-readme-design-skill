@@ -98,6 +98,26 @@ demo = "demo:main"
             self.assertIn('class="mermaid"', preview)
             self.assertIn("mermaid.initialize", preview)
 
+    def test_preview_renders_readme_html_and_language_switch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            readme = project / "README.md"
+            readme.write_text(
+                '<p align="center"><strong>English</strong> | '
+                '<a href="README_ZH.md">中文</a></p>\n\n'
+                '<table><tr><td><h3>Project-aware Analysis</h3>'
+                '<ul><li>Verified evidence</li></ul></td></tr></table>\n',
+                encoding="utf-8",
+            )
+            with patch("sys.argv", ["readme-magic", "preview", "-p", str(project), "-i", "README.md", "-o", "preview.html"]):
+                with redirect_stdout(io.StringIO()):
+                    main()
+            preview = (project / "preview.html").read_text(encoding="utf-8")
+            self.assertIn("<h3>Project-aware Analysis</h3>", preview)
+            self.assertIn('<a href="README_ZH.md">中文</a>', preview)
+            self.assertNotIn("&lt;h3&gt;", preview)
+
 
 if __name__ == "__main__":
     unittest.main()

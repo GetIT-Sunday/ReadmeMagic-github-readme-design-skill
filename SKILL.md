@@ -29,6 +29,8 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 - Keep every generated claim traceable to the inspection evidence. When evidence is missing, state the gap and recommend a specific repository asset or file instead of filling it with invented content.
 - Derive installation and usage commands from repository files. Never invent commands, compatibility claims, benchmarks, integrations, or features.
 - Preserve detailed sections whose content remains correct. Reorganize them when that improves scanning.
+- Treat an existing README that already passes the 85-point quality gate and has a branded first screen as a project-owned design. Improve it surgically: fill evidenced gaps, but preserve its section titles, order, navigation, language switch, and back-to-top controls unless a specific defect requires changing them.
+- A higher rubric score is not proof of a better README. Reject candidates that regress brand identity, visual hierarchy, readability, or useful navigation even when their numeric score increases.
 - For visual products, treat a missing screenshot as a blocking presentation gap. For infrastructure or libraries, use a real architecture or usage-flow diagram when it materially improves understanding.
 - Keep badges limited to useful, verifiable signals. Do not use badge walls or decorative animation by default.
 - Match the existing project language unless the user requests another language. For bilingual output, keep each section easy to scan rather than duplicating the entire document line by line.
@@ -45,6 +47,7 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 - Treat visual generation as capability-gated. CLI GIFs require a runnable CLI, screenshots require a visual product, and benchmark figures require source data. Architecture, workflow, and overview visuals are planned for every project, but their content must come from repository or paper evidence.
 - Support image generation modes `api`, `prompt_only`, and `disabled`. Store provider settings in `.readme-magic.json`; never print API keys or write them to manifests.
 - Always provide a visual review artifact before application: `README.preview.html` by default, or the path selected with `--preview-output`. The review must place the original and candidate side by side and expose section-level changes.
+- Keep prompt-only authoring artifacts under `artifacts/prompts/`; never show prompt paths or unfinished image instructions in the candidate README.
 - Render the source README's supported HTML presentation blocks (`h1`-`h6`, `ul`/`ol`/`li`, tables, links, images, details, and inline emphasis) as HTML in the preview; never expose those tags as visible text.
 - Preserve existing language switches such as `English | 中文` in the optimized first screen. Do not remove a valid navigation or language entry while rebuilding the hero.
 - For CLI projects, prefer a real runnable command transcript or a verified GIF as the showcase evidence. Do not use a decorative chart, banner, or growth image as the primary CLI demo.

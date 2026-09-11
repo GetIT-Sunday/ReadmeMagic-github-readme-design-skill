@@ -146,10 +146,18 @@ def _language_switch(existing: str) -> str:
 def _section(label: str, emoji: str, body: str) -> str:
     """Add a stable explicit anchor because GitHub slugs vary with emoji."""
     anchor = label.lower().replace(" ", "-")
-    return f'<a name="{anchor}"></a>\n## {emoji} {label}\n\n{body}'
+    heading = f"{emoji} {label}".strip()
+    return f'<a name="{anchor}"></a>\n## {heading}\n\n{body}'
 
 
 def _hero(metadata: ProjectMetadata, existing: str, labels: Dict[str, str]) -> str:
+    existing_header = existing.split("\n## ", 1)[0].strip()
+    existing_header = re.sub(r"(?:\n\s*---\s*)+$", "", existing_header).strip()
+    if _has_polished_header(existing):
+        # A polished existing hero is project-owned design. Preserve it instead
+        # of replacing brand copy, language switches, and navigation with a
+        # generic metadata-derived header.
+        return existing_header
     visual = _primary_visual(metadata, existing)
     image = (
         f'  <img src="{html.escape(visual, quote=True)}" alt="{html.escape(metadata.name, quote=True)} preview" width="100%">\n'
@@ -165,6 +173,19 @@ def _hero(metadata: ProjectMetadata, existing: str, labels: Dict[str, str]) -> s
         f'  {_nav(labels)}\n'
         f'{language_line}'
         '</div>'
+    )
+
+
+def _has_polished_header(existing: str) -> bool:
+    header = existing.split("\n## ", 1)[0].strip()
+    if not header or not re.search(r"(?i)(<h1\b|^#\s+)", header, re.M):
+        return False
+    return bool(
+        re.search(
+            r'(?is)<img\s+[^>]*src="(?!https://img\.shields\.io)([^"]+)"[^>]*>',
+            header,
+        )
+        or re.search(r"(?m)^!\[[^]]*\]\(((?!https://img\.shields\.io)[^)]+)\)$", header)
     )
 
 
@@ -312,16 +333,75 @@ def _asset_section(manifest: Optional[AssetManifest], key: str, is_zh: bool) -> 
     if asset.status in ("generated", "available") and asset.path:
         return f'<p align="center"><img src="{html.escape(asset.path, quote=True)}" alt="{title}" width="100%"></p>'
     if asset.status == "prompt_ready":
-        prompt_path = f"artifacts/prompts/{asset.key}.prompt.md"
-        message = (
-            f"已生成图片 Prompt：`{prompt_path}`。使用任意生图工具生成后，将图片保存到 `{asset.filename}`。"
-            if is_zh else
-            f"Image prompt ready at `{prompt_path}`. Generate it with any image tool and save the result to `{asset.filename}`."
-        )
-        return f"<!-- readme-magic:asset {asset.key} path=\"{asset.filename}\" -->\n> {message}"
+        # Prompt-only is an authoring artifact, not README content. Showing it
+        # in the published page makes the candidate look unfinished.
+        return ""
     if asset.status == "disabled":
         return ""
     return ""
+
+
+def _insert_before_section(content: str, block: str, section_key: str) -> str:
+    """Insert a new H2 block without changing the surrounding section design."""
+    aliases = SECTION_KEYS[section_key]
+    for match in re.finditer(r"(?m)^##\s+(.+?)\s*$", content):
+        title = re.sub(r"[^\w\u4e00-\u9fff ]", "", match.group(1)).strip().lower()
+        if any(alias in title for alias in aliases):
+            return content[:match.start()] + block.rstrip() + "\n\n---\n\n" + content[match.start():]
+    return content.rstrip() + "\n\n---\n\n" + block.rstrip() + "\n"
+
+
+def _render_conservative_readme(
+    metadata: ProjectMetadata,
+    existing: str,
+    labels: Dict[str, str],
+    is_zh: bool,
+    asset_manifest: Optional[AssetManifest],
+    runtime_demo: str,
+) -> str:
+    """Surgically fill gaps in an already strong, project-owned README."""
+    closing_visual = _closing_star_history(existing)
+    content = _without_closing_star_history(existing).rstrip()
+    sections = _extract_sections(content)
+
+    existing_showcase = sections.get("showcase", "")
+    improved_showcase = _showcase(
+        metadata,
+        content,
+        sections,
+        is_zh,
+        runtime_demo=runtime_demo,
+    )
+    if existing_showcase and improved_showcase != existing_showcase:
+        content = content.replace(existing_showcase, improved_showcase, 1)
+
+    if metadata.project_type == "cli" and not sections.get("commands") and metadata.usage_commands:
+        command_body = (
+            "已验证的命令入口：\n\n" if is_zh else "Verified entry point:\n\n"
+        ) + _code_block(metadata.usage_commands)
+        command_section = _section(
+            "命令参考" if is_zh else "Command Reference",
+            "🧭",
+            command_body,
+        )
+        content = _insert_before_section(content, command_section, "documentation")
+
+    generated_sections = []
+    for key, title, emoji in (
+        ("introduction", "项目介绍" if is_zh else "Project Overview", "💡"),
+        ("architecture", "架构" if is_zh else "Architecture", "🏗️"),
+        ("workflow", "工作流程" if is_zh else "Workflow", "🔄"),
+    ):
+        body = _asset_section(asset_manifest, key, is_zh)
+        if body and body not in content:
+            generated_sections.append(_section(title, emoji, body))
+    if generated_sections:
+        content = _insert_before_section(content, "\n\n---\n\n".join(generated_sections), "documentation")
+
+    if closing_visual:
+        content = re.sub(r"(?:\n\s*---\s*)+$", "", content.rstrip())
+        content = content.rstrip() + "\n\n---\n\n" + closing_visual
+    return content.rstrip() + "\n"
 
 
 def render_optimized_readme(
@@ -346,6 +426,18 @@ def render_optimized_readme(
         "contributing": "参与贡献" if is_zh else "Contributing",
         "license": "许可证" if is_zh else "License",
     }
+
+    if existing and _has_polished_header(existing):
+        current_report = analyze_readme(existing, metadata.project_type)
+        if current_report.score >= 85:
+            return _render_conservative_readme(
+                metadata,
+                existing,
+                labels,
+                is_zh,
+                asset_manifest,
+                runtime_demo,
+            )
 
     primary = _primary_visual(metadata, existing)
     features = _feature_cards(metadata, sections.get("features", ""), is_zh)
@@ -382,7 +474,10 @@ def render_optimized_readme(
         )
     preserved = _extract_unmanaged_sections(sections_source)
 
-    header = "\n\n".join(part for part in (_hero(metadata, existing, labels), _badges(metadata)) if part)
+    header_parts = [_hero(metadata, existing, labels)]
+    if not _has_polished_header(existing):
+        header_parts.append(_badges(metadata))
+    header = "\n\n".join(part for part in header_parts if part)
     blocks = [
         header,
         _section(labels['features'], "✨", features),
@@ -406,7 +501,7 @@ def render_optimized_readme(
         _section(labels['structure'], "🗂️", structure),
     ])
     blocks.extend(
-        _section(title, "📌", body) for title, body in preserved
+        _section(title, "", body) for title, body in preserved
     )
     blocks.extend([
         _section(labels['contributing'], "🤝", contributing),
