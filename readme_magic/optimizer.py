@@ -254,7 +254,7 @@ def _asset_section(manifest: Optional[AssetManifest], key: str, is_zh: bool) -> 
         "workflow": "工作流程" if is_zh else "Workflow",
         "introduction": "项目介绍图" if is_zh else "Project Overview",
     }[key]
-    if asset.status == "generated" and asset.path:
+    if asset.status in ("generated", "available") and asset.path:
         return f'<p align="center"><img src="{html.escape(asset.path, quote=True)}" alt="{title}" width="100%"></p>'
     if asset.status == "prompt_ready":
         prompt_path = f"artifacts/prompts/{asset.key}.prompt.md"

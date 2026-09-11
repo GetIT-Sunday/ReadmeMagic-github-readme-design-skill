@@ -288,6 +288,11 @@ def materialize_assets(
             asset.status = "disabled"
             continue
         if config.mode == "prompt_only":
+            destination = project / asset.filename
+            if destination.is_file():
+                asset.status = "available"
+                asset.path = asset.filename
+                continue
             if not write_prompts:
                 asset.status = "prompt_ready"
                 asset.path = asset.filename

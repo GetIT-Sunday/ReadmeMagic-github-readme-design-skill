@@ -43,6 +43,19 @@ description = "A small reusable project."
             self.assertFalse((project / "assets" / "generated" / "architecture.png").exists())
             self.assertEqual(manifest.optional_skills["cli-demo"], False)
 
+    def test_prompt_only_reuses_user_supplied_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            image = project / "assets" / "generated" / "architecture.png"
+            image.parent.mkdir(parents=True)
+            image.write_bytes(b"png")
+            metadata = inspect_project(project)
+            config = load_image_config(project, overrides={"mode": "prompt_only"})
+            manifest = materialize_assets(project, plan_assets(metadata, config), config)
+            architecture = next(asset for asset in manifest.assets if asset.key == "architecture")
+            self.assertEqual(architecture.status, "available")
+            self.assertEqual(architecture.path, "assets/generated/architecture.png")
+
     def test_disabled_mode_only_plans_mandatory_visuals(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
