@@ -132,6 +132,19 @@ Please contribute.
             content = render_optimized_readme(inspect_project(project), existing, lang="en")
             self.assertGreater(content.rfind("api.star-history.com"), content.rfind("## 📄 License"))
 
+    def test_opt_in_runtime_demo_is_added_to_showcase(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            destination, _, after, _ = optimize_project(
+                project, lang="en", demo_command="python3 -c 'print(\"verified output\")'"
+            )
+            content = destination.read_text(encoding="utf-8")
+            self.assertIn("Verified runtime transcript", content)
+            self.assertIn("verified output", content)
+            self.assertIn("showcase_evidence", after.passed_checks)
+            showcase = content[content.index("## 🖼️ Showcase"):content.index("## 📦 Installation")]
+            self.assertNotIn("readme-magic-cli-demo.gif", showcase)
+
     def test_star_history_asset_is_not_added_to_showcase(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)

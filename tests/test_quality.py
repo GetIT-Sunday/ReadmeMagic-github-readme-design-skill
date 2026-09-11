@@ -135,6 +135,21 @@ Type: cli
         )
         self.assertNotIn("type_structure", {item.code for item in report.findings})
 
+    def test_cli_transcript_accepts_project_specific_output(self):
+        content = """# Demo CLI
+
+A command line tool with a clear value proposition.
+
+## Command Reference
+```console
+$ demo run
+custom project result
+[exit code: 0]
+```
+"""
+        report = analyze_readme(content, "cli")
+        self.assertIn("showcase_evidence", report.passed_checks)
+
 
 if __name__ == "__main__":
     unittest.main()

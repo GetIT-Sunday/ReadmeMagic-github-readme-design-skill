@@ -48,6 +48,7 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 - Render the source README's supported HTML presentation blocks (`h1`-`h6`, `ul`/`ol`/`li`, tables, links, images, details, and inline emphasis) as HTML in the preview; never expose those tags as visible text.
 - Preserve existing language switches such as `English | 中文` in the optimized first screen. Do not remove a valid navigation or language entry while rebuilding the hero.
 - For CLI projects, prefer a real runnable command transcript or a verified GIF as the showcase evidence. Do not use a decorative chart, banner, or growth image as the primary CLI demo.
+- A real runtime simulation is opt-in only: when the user provides `--demo-command`, run that explicit command in the project, capture its output, and label it as verified runtime evidence. Never execute an inferred or unknown command automatically.
 
 ## CLI
 
@@ -74,6 +75,7 @@ readme-magic preview --project-path . --input README.md --compare README.optimiz
 # Customize or skip the automatic review page
 readme-magic optimize --project-path . --preview-output README.review.html
 readme-magic optimize --project-path . --no-preview
+readme-magic optimize --project-path . --demo-command "python3 -m readme_magic.cli inspect --project-path ."
 
 # Apply after review; creates README.md.bak
 readme-magic optimize --project-path . --apply

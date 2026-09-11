@@ -160,6 +160,9 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 ## Unreleased
 
+- Add opt-in `--demo-command` runtime simulation that captures real command output for CLI Showcase sections.
+- Prefer verified CLI transcripts over existing GIFs when an explicit demo command is supplied.
+- Recognize arbitrary project-specific output as valid terminal evidence.
 - Fix GitHub-like preview rendering for README HTML grids, headings, and lists.
 - Preserve existing English/Chinese language switches during hero rebuilding.
 - Keep decorative growth charts out of CLI Showcase sections.

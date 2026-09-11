@@ -91,6 +91,14 @@ def _has_terminal_evidence(content: str) -> bool:
         lowered = block.lower()
         has_command = bool(re.search(r"(?m)^(?:\$|>)\s*\S+", block)) or "readme-magic " in lowered
         has_output = any(token in lowered for token in output_tokens)
+        if has_command:
+            lines = [line.strip() for line in block.splitlines() if line.strip()]
+            # Project commands can emit arbitrary text; a non-status line after
+            # the prompt is still useful runtime evidence.
+            if len(lines) >= 2 and any(
+                not line.startswith(("$", ">", "[")) for line in lines[1:]
+            ):
+                return True
         if has_command and has_output:
             return True
     return False

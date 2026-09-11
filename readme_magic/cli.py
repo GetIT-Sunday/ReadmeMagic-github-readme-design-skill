@@ -558,6 +558,8 @@ Examples:
                           help="HTML review path (default: <project>/README.preview.html)")
     optimize.add_argument("--no-preview", action="store_true",
                           help="Skip automatic before/after HTML review generation")
+    optimize.add_argument("--demo-command", default=None,
+                          help="Opt-in command to run in the project and embed as verified Showcase evidence")
     optimize.add_argument("--json", action="store_true", help="Print a machine-readable result")
 
     # ── preview ───────────────────────────────────────────────────────────────
@@ -627,6 +629,7 @@ Examples:
                 image_provider=args.image_provider,
                 image_model=args.image_model,
                 image_config_path=Path(args.image_config).expanduser() if args.image_config else None,
+                demo_command=args.demo_command,
             )
         except ValueError as exc:
             parser.error(str(exc))

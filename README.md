@@ -157,6 +157,10 @@ readme-magic optimize --project-path ./my-project --preview-output README.review
 
 # Opt out only for automated callers that already render their own review
 readme-magic optimize --project-path ./my-project --no-preview
+
+# Optional: run an explicit project command and show its real output in Showcase
+readme-magic optimize --project-path ./my-project \
+  --demo-command "python3 -m your_package --help"
 ```
 
 By default, optimization uses `prompt_only` visual planning: it writes an asset manifest and image prompts without requiring an image API. Generated images are never presented as runtime evidence unless the user supplies or creates them.

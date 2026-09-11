@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 from .analyzer import ProjectMetadata, inspect_project
 from .assets import ImageGenerationConfig, AssetManifest, load_image_config, materialize_assets, plan_assets
+from .demo import capture_command
 from .quality import ReadmeReport, analyze_readme
 
 
@@ -204,12 +205,26 @@ def _showcase_has_type_evidence(body: str, project_type: str) -> bool:
     return bool(re.search(r"<img\s|!\[[^]]*\]\([^)]+\)", body, re.I)) or "```" in body
 
 
-def _showcase(metadata: ProjectMetadata, existing: str, sections: Dict[str, str], is_zh: bool) -> str:
+def _showcase(
+    metadata: ProjectMetadata,
+    existing: str,
+    sections: Dict[str, str],
+    is_zh: bool,
+    runtime_demo: str = "",
+) -> str:
     existing_showcase = sections.get("showcase", "")
-    if existing_showcase and _showcase_has_type_evidence(existing_showcase, metadata.project_type):
+    if existing_showcase and _showcase_has_type_evidence(existing_showcase, metadata.project_type) and not runtime_demo:
         return existing_showcase
     primary = _primary_visual(metadata, existing)
     assets = _showcase_assets(metadata, primary)
+    if runtime_demo:
+        demo_label = "真实运行记录" if is_zh else "Verified runtime transcript"
+        runtime_block = f"**{demo_label}**\n\n{runtime_demo.strip()}"
+        if metadata.project_type == "cli":
+            return runtime_block
+        if existing_showcase:
+            return existing_showcase + "\n\n" + runtime_block
+        return runtime_block
     if existing_showcase and assets:
         showcase_assets = assets[:2]
         visual = "\n\n".join(
@@ -314,6 +329,7 @@ def render_optimized_readme(
     existing: str = "",
     lang: str = "auto",
     asset_manifest: Optional[AssetManifest] = None,
+    runtime_demo: str = "",
 ) -> str:
     lang = _detect_language(existing, lang)
     closing_visual = _closing_star_history(existing)
@@ -333,7 +349,7 @@ def render_optimized_readme(
 
     primary = _primary_visual(metadata, existing)
     features = _feature_cards(metadata, sections.get("features", ""), is_zh)
-    showcase = _showcase(metadata, existing, sections, is_zh)
+    showcase = _showcase(metadata, existing, sections, is_zh, runtime_demo=runtime_demo)
     install = sections.get("installation") or _code_block(metadata.install_commands)
     usage = sections.get("usage") or _code_block(metadata.usage_commands)
     structure = sections.get("structure") or f"```text\n{metadata.structure}\n```"
@@ -413,6 +429,7 @@ def optimize_project(
     image_provider: Optional[str] = None,
     image_model: Optional[str] = None,
     image_config_path: Optional[Path] = None,
+    demo_command: Optional[str] = None,
 ) -> Tuple[Path, ReadmeReport, ReadmeReport, ProjectMetadata]:
     metadata = inspect_project(project_path)
     project = Path(metadata.path)
@@ -422,10 +439,14 @@ def optimize_project(
         overrides={"mode": image_mode, "provider": image_provider, "model": image_model},
     )
     manifest = materialize_assets(project, plan_assets(metadata, config), config)
+    runtime_demo = ""
+    if demo_command:
+        transcript_path = capture_command(project, demo_command)
+        runtime_demo = transcript_path.read_text(encoding="utf-8")
     readme = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
     existing = readme.read_text(encoding="utf-8") if readme.exists() else ""
     before = analyze_readme(existing, metadata.project_type)
-    candidate = render_optimized_readme(metadata, existing, lang, asset_manifest=manifest)
+    candidate = render_optimized_readme(metadata, existing, lang, asset_manifest=manifest, runtime_demo=runtime_demo)
     after = analyze_readme(candidate, metadata.project_type)
 
     if apply:
