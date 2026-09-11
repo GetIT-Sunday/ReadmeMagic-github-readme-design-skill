@@ -343,7 +343,7 @@ def _markdown_to_html(markdown: str) -> str:
             continue
         # README files commonly use HTML for centered banners and image grids.
         # Keep presentation HTML visible in the local preview.
-        if re.search(r"<\/?(?:img|p|div|table|tr|td|a|strong|em|br|details|summary)\b", line, re.I):
+        if re.search(r"<\/?(?:img|p|div|table|tr|td|th|thead|tbody|tfoot|a|strong|em|br|details|summary|h[1-6]|ul|ol|li|code|pre|blockquote|sub|sup|span|small)\b", line, re.I):
             output.append(line)
             continue
         if line.startswith("---"):

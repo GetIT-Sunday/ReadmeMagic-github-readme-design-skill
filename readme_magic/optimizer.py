@@ -131,6 +131,17 @@ def _nav(labels: Dict[str, str]) -> str:
     return '<p align="center">' + " · ".join(links) + "</p>"
 
 
+def _language_switch(existing: str) -> str:
+    """Preserve an existing English/Chinese switch from the source README."""
+    header = existing.split("\n## ", 1)[0]
+    match = re.search(
+        r'(?is)<p\s+align="center">\s*<strong>English</strong>\s*\|\s*'
+        r'<a\s+href="[^"]+">中文</a>\s*</p>',
+        header,
+    )
+    return match.group(0) if match else ""
+
+
 def _section(label: str, emoji: str, body: str) -> str:
     """Add a stable explicit anchor because GitHub slugs vary with emoji."""
     anchor = label.lower().replace(" ", "-")
@@ -143,12 +154,15 @@ def _hero(metadata: ProjectMetadata, existing: str, labels: Dict[str, str]) -> s
         f'  <img src="{html.escape(visual, quote=True)}" alt="{html.escape(metadata.name, quote=True)} preview" width="100%">\n'
         if visual else ""
     )
+    language_switch = _language_switch(existing)
+    language_line = f"  {language_switch}\n" if language_switch else ""
     return (
         '<div align="center">\n'
         f'{image}'
         f'  <h1>{html.escape(metadata.name)}</h1>\n'
         f'  <p><strong>{html.escape(metadata.description)}</strong></p>\n'
         f'  {_nav(labels)}\n'
+        f'{language_line}'
         '</div>'
     )
 

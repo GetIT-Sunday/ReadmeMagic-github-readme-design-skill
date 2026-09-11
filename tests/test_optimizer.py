@@ -144,6 +144,13 @@ Please contribute.
             showcase = content[showcase_start:showcase_end]
             self.assertNotIn("star-history.png", showcase)
 
+    def test_preserves_existing_language_switch_in_hero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            existing = '<p align="center">\n  <strong>English</strong> | <a href="README_ZH.md">中文</a>\n</p>\n'
+            content = render_optimized_readme(inspect_project(project), existing, lang="en")
+            self.assertIn('<a href="README_ZH.md">中文</a>', content)
+
     def test_preserves_unmanaged_sections_and_adds_stable_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
