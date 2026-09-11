@@ -149,7 +149,34 @@ readme-magic optimize --project-path ./my-project
 readme-magic optimize --project-path ./my-project --apply
 ```
 
-**④ Generate a new README from a template**
+By default, optimization uses `prompt_only` visual planning: it writes an asset manifest and image prompts without requiring an image API. Generated images are never presented as runtime evidence unless the user supplies or creates them.
+
+```bash
+# Inspect or create image-generation settings
+readme-magic image-config --project-path ./my-project --init
+readme-magic image-config --project-path ./my-project --json
+
+# Generate architecture, workflow, and overview visuals through an API
+readme-magic optimize --project-path ./my-project --image-mode api
+
+# Plan assets only; do not create image files
+readme-magic optimize --project-path ./my-project --image-mode disabled
+```
+
+**④ Preview the README before publishing**
+
+```bash
+# Render a GitHub-like local preview
+readme-magic preview --project-path ./my-project --input README.optimized.md
+
+# Compare the original and candidate side by side
+readme-magic preview --project-path ./my-project \
+  --input README.md --compare README.optimized.md --output preview-diff.html
+```
+
+`prompt_only` creates `artifacts/prompts/*.prompt.md` and every run records `artifacts/asset-manifest.json`. The planner always creates slots for an overview visual, an architecture diagram, and a workflow diagram. CLI demos, product screenshots, paper extraction, and benchmark charts are enabled only when repository signals support them.
+
+**⑤ Generate a new README from a template**
 
 ```bash
 # English README (default)
@@ -162,7 +189,7 @@ readme-magic generate --project-path ./my-project --lang zh
 readme-magic generate --project-path ./my-project --lang bilingual
 ```
 
-**⑤ Choose a template**
+**⑥ Choose a template**
 
 ```bash
 readme-magic generate --template ai-project --lang zh
@@ -170,7 +197,7 @@ readme-magic generate --template cli-tool --lang bilingual
 readme-magic generate --template standard --lang en
 ```
 
-**⑥ Customize colors, badges, and banner**
+**⑦ Customize colors, badges, and banner**
 
 ```bash
 # With an existing banner image

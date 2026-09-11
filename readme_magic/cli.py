@@ -1,12 +1,15 @@
 """ReadmeMagic CLI - One spell, beautiful README"""
 import argparse
+import html as html_lib
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 from .analyzer import inspect_project
+from .assets import DEFAULT_CONFIG, IMAGE_MODES, load_image_config
 from .optimizer import optimize_project
 from .quality import analyze_readme
 
@@ -310,6 +313,80 @@ def _build_star_history(repo: str) -> str:
     )
 
 
+def _markdown_to_html(markdown: str) -> str:
+    """Small dependency-free renderer for local README review."""
+    output = []
+    in_code = False
+    code_lines = []
+    for raw in markdown.splitlines():
+        line = raw.rstrip()
+        if line.startswith("```"):
+            if in_code:
+                output.append("<pre><code>" + html_lib.escape("\n".join(code_lines)) + "</code></pre>")
+                code_lines = []
+                in_code = False
+            else:
+                in_code = True
+            continue
+        if in_code:
+            code_lines.append(line)
+            continue
+        if not line.strip():
+            continue
+        # README files commonly use HTML for centered banners and image grids.
+        # Keep presentation HTML visible in the local preview.
+        if re.search(r"<\/?(?:img|p|div|table|tr|td|a|strong|em|br|details|summary)\b", line, re.I):
+            output.append(line)
+            continue
+        if line.startswith("---"):
+            output.append("<hr>")
+            continue
+        heading = re.match(r"^(#{1,6})\s+(.+)$", line)
+        if heading:
+            level = len(heading.group(1))
+            output.append(f"<h{level}>{html_lib.escape(heading.group(2))}</h{level}>")
+            continue
+        image = re.fullmatch(r"!\[([^]]*)\]\(([^)]+)\)", line.strip())
+        if image:
+            alt, src = image.groups()
+            output.append(f'<p><img src="{html_lib.escape(src, quote=True)}" alt="{html_lib.escape(alt, quote=True)}"></p>')
+            continue
+        if re.match(r"^[-*]\s+", line):
+            item = re.sub(r"^[-*]\s+", "", line)
+            if not output or not output[-1].startswith("<ul>"):
+                output.append("<ul>")
+            output.append("<li>" + html_lib.escape(item) + "</li>")
+            continue
+        text = html_lib.escape(line)
+        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+        output.append("<p>" + text + "</p>")
+    if in_code:
+        output.append("<pre><code>" + html_lib.escape("\n".join(code_lines)) + "</code></pre>")
+    if output and output[-1].startswith("<li>"):
+        output.append("</ul>")
+    return "\n".join(output)
+
+
+def _preview_html(primary: str, primary_name: str, comparison: str = "", comparison_name: str = "") -> str:
+    primary_html = _markdown_to_html(primary)
+    if comparison:
+        comparison_html = _markdown_to_html(comparison)
+        body = (
+            '<main class="comparison">'
+            f'<section><h2>{html_lib.escape(primary_name)}</h2>{primary_html}</section>'
+            f'<section><h2>{html_lib.escape(comparison_name)}</h2>{comparison_html}</section>'
+            '</main>'
+        )
+    else:
+        body = f'<main><h2>{html_lib.escape(primary_name)}</h2>{primary_html}</main>'
+    return """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReadmeMagic preview</title>
+<style>
+:root{color-scheme:light dark}body{font-family:system-ui,-apple-system,sans-serif;line-height:1.55;margin:0;background:#f6f8fa;color:#24292f}main{max-width:980px;margin:2rem auto;padding:2rem;background:#fff;border:1px solid #d0d7de;border-radius:8px}main.comparison{max-width:1400px;display:grid;grid-template-columns:1fr 1fr;gap:1rem;background:transparent;border:0;padding:1rem}section{background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:1.5rem;min-width:0}h1,h2,h3{line-height:1.25}img{max-width:100%;height:auto}pre{overflow:auto;background:#f6f8fa;padding:1rem;border-radius:6px}code{font-family:ui-monospace,SFMono-Regular,monospace}@media(max-width:800px){main.comparison{display:block}section+section{margin-top:1rem}}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}main,section{background:#161b22;border-color:#30363d}pre{background:#0d1117}}
+</style></head><body>""" + body + "</body></html>"
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="readme-magic",
@@ -389,12 +466,29 @@ Examples:
         action="store_true",
         help="Replace README.md after saving README.md.bak (default: candidate only)",
     )
+    optimize.add_argument("--image-mode", choices=IMAGE_MODES, default=None,
+                          help="Visual asset mode: api, prompt_only, or disabled")
+    optimize.add_argument("--image-provider", default=None,
+                          help="Image provider name (default: configured provider)")
+    optimize.add_argument("--image-model", default=None,
+                          help="Image model name (default: configured model)")
+    optimize.add_argument("--image-config", default=None,
+                          help="Path to a JSON image-generation config")
     optimize.add_argument("--json", action="store_true", help="Print a machine-readable result")
 
     # ── preview ───────────────────────────────────────────────────────────────
     preview = subparsers.add_parser("preview", help="Preview README as HTML")
+    preview.add_argument("--project-path", "-p", default=".", help="Project path (default: current directory)")
     preview.add_argument("--input", "-i", default="README.md", help="Input README file (default: README.md)")
     preview.add_argument("--output", "-o", default="preview.html", help="Output HTML file (default: preview.html)")
+    preview.add_argument("--compare", help="Optional second README to show beside the input")
+
+    # -- image-config --------------------------------------------------------
+    image_config = subparsers.add_parser("image-config", help="Inspect or initialize image generation settings")
+    image_config.add_argument("--project-path", "-p", default=".", help="Project path (default: current directory)")
+    image_config.add_argument("--file", help="Config file path (default: <project>/.readme-magic.json)")
+    image_config.add_argument("--init", action="store_true", help="Write a commented-free default JSON config")
+    image_config.add_argument("--json", action="store_true", help="Print the effective config as JSON")
 
     # ── templates ─────────────────────────────────────────────────────────────
     tmpl = subparsers.add_parser("templates", help="List available templates")
@@ -444,7 +538,11 @@ Examples:
         output = Path(args.output).expanduser() if args.output else None
         try:
             destination, before, after, metadata = optimize_project(
-                Path(args.project_path), output=output, apply=args.apply, lang=args.lang
+                Path(args.project_path), output=output, apply=args.apply, lang=args.lang,
+                image_mode=args.image_mode,
+                image_provider=args.image_provider,
+                image_model=args.image_model,
+                image_config_path=Path(args.image_config).expanduser() if args.image_config else None,
             )
         except ValueError as exc:
             parser.error(str(exc))
@@ -455,11 +553,20 @@ Examples:
             "before": before.to_dict(),
             "after": after.to_dict(),
         }
+        manifest_path = Path(metadata.path) / "artifacts" / "asset-manifest.json"
+        if manifest_path.exists():
+            result["asset_manifest"] = json.loads(manifest_path.read_text(encoding="utf-8"))
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             print(f"Optimized README -> {destination.resolve()}")
             print(f"Score: {before.score}/100 -> {after.score}/100")
+            if manifest_path.exists():
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                statuses = {}
+                for asset in manifest.get("assets", []):
+                    statuses[asset.get("status", "unknown")] = statuses.get(asset.get("status", "unknown"), 0) + 1
+                print("Visual assets: " + ", ".join(f"{key}={value}" for key, value in sorted(statuses.items())))
             if after.findings:
                 print("Remaining presentation/content gaps:")
                 for finding in after.findings:
@@ -493,25 +600,43 @@ Examples:
 
     # ── handle preview ────────────────────────────────────────────────────────
     elif args.command == "preview":
+        project_path = Path(args.project_path).expanduser().resolve()
         input_path = Path(args.input)
+        if not input_path.is_absolute():
+            input_path = project_path / input_path
         output_path = Path(args.output)
+        if not output_path.is_absolute():
+            output_path = project_path / output_path
         if not input_path.exists():
             print(f"❌ Input file not found: {input_path}", file=sys.stderr)
             sys.exit(1)
 
         md_content = input_path.read_text(encoding="utf-8")
-        html = (
-            "<!DOCTYPE html><html><head>"
-            '<meta charset="utf-8">'
-            '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;}</style>'
-            "</head><body><pre style='white-space:pre-wrap'>"
-            + md_content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            + "</pre></body></html>"
-        )
+        compare_path = Path(args.compare) if args.compare else None
+        if compare_path and not compare_path.is_absolute():
+            compare_path = project_path / compare_path
+        if compare_path and not compare_path.exists():
+            print(f"❌ Comparison file not found: {compare_path}", file=sys.stderr)
+            sys.exit(1)
+        html = _preview_html(md_content, input_path.name, compare_path.read_text(encoding="utf-8") if compare_path else "", compare_path.name if compare_path else "")
         output_path.write_text(html, encoding="utf-8")
         print(f"👀 Preview saved → {output_path.resolve()}")
         print(f"   Open in browser: file://{output_path.resolve()}")
+
+    # -- handle image-config -------------------------------------------------
+    elif args.command == "image-config":
+        project_path = Path(args.project_path).expanduser().resolve()
+        config_path = Path(args.file).expanduser() if args.file else project_path / ".readme-magic.json"
+        if args.init:
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            if config_path.exists():
+                parser.error(f"config already exists: {config_path}")
+            config_path.write_text(json.dumps({"image_generation": DEFAULT_CONFIG}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            if not args.json:
+                print(f"Image config initialized → {config_path}")
+        config = load_image_config(project_path, config_path=config_path if config_path.exists() else None)
+        if args.json or not args.init:
+            print(json.dumps(config.to_dict(), ensure_ascii=False, indent=2))
 
     # ── handle templates ──────────────────────────────────────────────────────
     elif args.command == "templates":

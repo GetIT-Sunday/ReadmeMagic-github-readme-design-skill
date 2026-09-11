@@ -14,7 +14,7 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 3. Inspect the files that define the product and its real usage. Prioritize package metadata, entry points, examples, tests, license, configuration, existing documentation, and reusable images under `assets/`, `docs/`, `images/`, or `screenshots/`.
 4. Classify the repository conservatively as a product, library, CLI, AI, infrastructure, knowledge, personal, or generic project. Use the detected type and confidence to choose the information architecture; lower confidence means preserve more existing structure.
 5. Define the first-screen story: project identity, concrete value, strongest available evidence, primary audience, and the first useful action.
-6. Run `readme-magic optimize --project-path <path>` to create `README.optimized.md` without changing the original.
+6. Run `readme-magic optimize --project-path <path>` to create `README.optimized.md` without changing the original. Optimization also creates a project-aware visual asset manifest. By default it uses `prompt_only`, so users without an image API receive ready-to-use prompts under `artifacts/prompts/`.
 7. Review the candidate against the repository. Correct generic text, remove unsupported claims, and preserve valuable examples or domain explanations from the original.
 8. Run the analyzer against the candidate or assess it with [references/readme-rubric.md](references/readme-rubric.md). Resolve every placeholder, require strong content and presentation dimensions, and target a score of at least 85.
 9. Present the candidate and the main changes. Replace `README.md` only when the user explicitly requests it. Use `--apply` for a backed-up replacement.
@@ -41,6 +41,8 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 - Show or summarize the diff before applying substantial changes.
 - Do not add external tracking images or services without a clear documentation purpose.
 - Do not use generic stock images or fabricated screenshots as project evidence. Generated banners may establish identity but must not imply nonexistent product behavior.
+- Treat visual generation as capability-gated. CLI GIFs require a runnable CLI, screenshots require a visual product, and benchmark figures require source data. Architecture, workflow, and overview visuals are planned for every project, but their content must come from repository or paper evidence.
+- Support image generation modes `api`, `prompt_only`, and `disabled`. Store provider settings in `.readme-magic.json`; never print API keys or write them to manifests.
 
 ## CLI
 
@@ -58,6 +60,11 @@ readme-magic optimize --project-path .
 # Force English or Chinese
 readme-magic optimize --project-path . --lang en
 readme-magic optimize --project-path . --lang zh
+
+# Plan or generate project-aware visual assets
+readme-magic image-config --project-path . --init
+readme-magic preview --project-path . --input README.optimized.md
+readme-magic preview --project-path . --input README.md --compare README.optimized.md
 
 # Apply after review; creates README.md.bak
 readme-magic optimize --project-path . --apply

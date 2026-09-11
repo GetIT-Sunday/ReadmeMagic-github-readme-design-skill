@@ -37,6 +37,26 @@ demo = "demo:main"
                 "pyproject.toml",
             )
 
+    def test_image_config_init_and_preview_compare(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "README.md").write_text("# Demo\n\nOriginal README.\n", encoding="utf-8")
+            output = io.StringIO()
+            with patch("sys.argv", ["readme-magic", "image-config", "-p", str(project), "--init"]):
+                with redirect_stdout(output):
+                    main()
+            config = json.loads((project / ".readme-magic.json").read_text(encoding="utf-8"))
+            self.assertEqual(config["image_generation"]["mode"], "prompt_only")
+
+            (project / "README.optimized.md").write_text("# Demo\n\n## Highlights\n\nBetter.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "preview", "-p", str(project), "-i", "README.md", "--compare", "README.optimized.md", "-o", "diff.html"]):
+                with redirect_stdout(io.StringIO()):
+                    main()
+            preview = (project / "diff.html").read_text(encoding="utf-8")
+            self.assertIn("comparison", preview)
+            self.assertIn("README.optimized.md", preview)
+
 
 if __name__ == "__main__":
     unittest.main()

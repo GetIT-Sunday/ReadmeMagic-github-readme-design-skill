@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 from .analyzer import ProjectMetadata, inspect_project
+from .assets import ImageGenerationConfig, AssetManifest, load_image_config, materialize_assets, plan_assets
 from .quality import ReadmeReport, analyze_readme
 
 
@@ -241,7 +242,39 @@ def _feature_list(metadata: ProjectMetadata, existing_body: str, is_zh: bool) ->
     return localized
 
 
-def render_optimized_readme(metadata: ProjectMetadata, existing: str = "", lang: str = "auto") -> str:
+def _asset_section(manifest: Optional[AssetManifest], key: str, is_zh: bool) -> str:
+    """Embed generated assets, or leave an explicit non-broken placeholder."""
+    if not manifest:
+        return ""
+    asset = next((item for item in manifest.assets if item.key == key), None)
+    if not asset:
+        return ""
+    title = {
+        "architecture": "架构图" if is_zh else "Architecture",
+        "workflow": "工作流程" if is_zh else "Workflow",
+        "introduction": "项目介绍图" if is_zh else "Project Overview",
+    }[key]
+    if asset.status == "generated" and asset.path:
+        return f'<p align="center"><img src="{html.escape(asset.path, quote=True)}" alt="{title}" width="100%"></p>'
+    if asset.status == "prompt_ready":
+        prompt_path = f"artifacts/prompts/{asset.key}.prompt.md"
+        message = (
+            f"已生成图片 Prompt：`{prompt_path}`。使用任意生图工具生成后，将图片保存到 `{asset.filename}`。"
+            if is_zh else
+            f"Image prompt ready at `{prompt_path}`. Generate it with any image tool and save the result to `{asset.filename}`."
+        )
+        return f"<!-- readme-magic:asset {asset.key} path=\"{asset.filename}\" -->\n> {message}"
+    if asset.status == "disabled":
+        return ""
+    return ""
+
+
+def render_optimized_readme(
+    metadata: ProjectMetadata,
+    existing: str = "",
+    lang: str = "auto",
+    asset_manifest: Optional[AssetManifest] = None,
+) -> str:
     lang = _detect_language(existing, lang)
     sections = _extract_sections(existing)
     is_zh = lang == "zh"
@@ -294,6 +327,15 @@ def render_optimized_readme(metadata: ProjectMetadata, existing: str = "", lang:
         _section(labels['installation'], "📦", install),
         _section(labels['usage'], "🚀", usage),
     ]
+    overview = _asset_section(asset_manifest, "introduction", is_zh)
+    architecture = _asset_section(asset_manifest, "architecture", is_zh)
+    workflow = _asset_section(asset_manifest, "workflow", is_zh)
+    if overview:
+        blocks.append(_section("项目介绍" if is_zh else "Project Overview", "💡", overview))
+    if architecture:
+        blocks.append(_section("架构" if is_zh else "Architecture", "🏗️", architecture))
+    if workflow:
+        blocks.append(_section("工作流程" if is_zh else "Workflow", "🔄", workflow))
     if reference_body:
         blocks.append(_section("命令参考" if is_zh else "Command Reference", "🧭", reference_body))
     blocks.extend([
@@ -317,13 +359,24 @@ def optimize_project(
     output: Optional[Path] = None,
     apply: bool = False,
     lang: str = "auto",
+    image_config: Optional[ImageGenerationConfig] = None,
+    image_mode: Optional[str] = None,
+    image_provider: Optional[str] = None,
+    image_model: Optional[str] = None,
+    image_config_path: Optional[Path] = None,
 ) -> Tuple[Path, ReadmeReport, ReadmeReport, ProjectMetadata]:
     metadata = inspect_project(project_path)
     project = Path(metadata.path)
+    config = image_config or load_image_config(
+        project,
+        config_path=image_config_path,
+        overrides={"mode": image_mode, "provider": image_provider, "model": image_model},
+    )
+    manifest = materialize_assets(project, plan_assets(metadata, config), config)
     readme = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
     existing = readme.read_text(encoding="utf-8") if readme.exists() else ""
     before = analyze_readme(existing, metadata.project_type)
-    candidate = render_optimized_readme(metadata, existing, lang)
+    candidate = render_optimized_readme(metadata, existing, lang, asset_manifest=manifest)
     after = analyze_readme(candidate, metadata.project_type)
 
     if apply:

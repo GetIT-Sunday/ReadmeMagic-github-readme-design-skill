@@ -158,3 +158,10 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Unreleased
+
+- Add project-aware visual asset planning for overview, architecture, and workflow visuals.
+- Add `api`, `prompt_only`, and `disabled` image generation modes with `.readme-magic.json` configuration.
+- Add lightweight LaTeX paper context extraction and optional-skill capability detection.
+- Add asset prompts and manifests to the optimization workflow without creating broken image links.
+- Add side-by-side GitHub-like README preview support with `preview --compare`.

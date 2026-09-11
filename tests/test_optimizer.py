@@ -90,6 +90,15 @@ hello = "hello:main"
             self.assertIn("## ✨ Highlights", content)
             self.assertIn("<table>", content)
 
+    def test_default_optimization_adds_prompt_slots_without_broken_images(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            destination, _, _, _ = optimize_project(project, lang="en")
+            content = destination.read_text(encoding="utf-8")
+            self.assertIn("artifacts/prompts/architecture.prompt.md", content)
+            self.assertIn("<a name=\"architecture\"></a>", content)
+            self.assertNotIn('src="assets/generated/architecture.png"', content)
+
     def test_preserves_unmanaged_sections_and_adds_stable_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
