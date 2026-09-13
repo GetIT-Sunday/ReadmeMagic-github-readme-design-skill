@@ -22,6 +22,7 @@ Evaluate a README as both documentation and the project's primary GitHub landing
 ## Quality Gate
 
 - Require at least 85/100 before recommending replacement.
+- Also require at least 80/100 in the independent [reading-experience rubric](reading-experience-rubric.md). Do not average the two scores.
 - Require at least 15/20 presentation points.
 - Treat inaccurate commands, unsupported claims, leaked secrets, broken local asset paths, and unresolved placeholders as blocking issues regardless of score.
 - Treat a missing real screenshot as blocking for GUI applications, websites, games, and visual tools.

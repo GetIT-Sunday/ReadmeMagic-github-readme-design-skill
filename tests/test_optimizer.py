@@ -164,6 +164,37 @@ MIT
             content = render_optimized_readme(inspect_project(project), existing, lang="en")
             self.assertEqual(content, existing)
 
+    def test_high_quality_readme_only_repairs_reading_experience_defects(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            (project / "assets").mkdir()
+            (project / "assets" / "banner.png").write_bytes(b"png")
+            (project / "assets" / "cli-demo.gif").write_bytes(b"GIF89a")
+            back = '<div align="right"><a href="#brand">↑ back to top</a></div>'
+            sections = [
+                ("Features", "- Repository-aware analysis\n- Safe candidate generation\n- Visual review"),
+                ("Showcase", '<p align="center"><img src="assets/cli-demo.gif" alt="CLI demo"></p>'),
+                ("Installation", "    pip install -e ."),
+                ("Usage", "    hello --help"),
+                ("Documentation", "See docs for details."),
+                ("Contributing", "Issues and pull requests are welcome."),
+                ("License", "MIT"),
+            ]
+            body = "\n\n".join(f"## {title}\n{section_body}\n{back}" for title, section_body in sections)
+            existing = (
+                '<a name="brand"></a>\n<p align="center"><img src="assets/banner.png" alt="Brand"></p>\n\n'
+                '# Original Brand\n\n'
+                '<p align="center"><strong>English</strong> | <a href="README_ZH.md">中文</a></p>\n\n'
+                '<p align="center"><a href="#features">Features</a> · <a href="#showcase">Showcase</a> · '
+                '<a href="#usage">Usage</a> · <a href="#documentation">Documentation</a></p>\n\n'
+                + body + "\n"
+            )
+            content = render_optimized_readme(inspect_project(project), existing, lang="en")
+            self.assertIn("Original Brand", content)
+            self.assertIn('README_ZH.md">中文</a>', content)
+            self.assertIn("Repository-aware analysis", content)
+            self.assertNotIn("back to top", content.lower())
+
     def test_cli_gets_a_grounded_command_reference(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)

@@ -10,6 +10,7 @@ from urllib.parse import quote
 from .analyzer import ProjectMetadata, inspect_project
 from .assets import ImageGenerationConfig, AssetManifest, load_image_config, materialize_assets, plan_assets
 from .demo import capture_command
+from .experience import analyze_experience, apply_safe_experience_fixes
 from .quality import ReadmeReport, analyze_readme
 
 
@@ -437,12 +438,14 @@ def render_optimized_readme(
     if existing and _has_polished_header(existing):
         current_report = analyze_readme(existing, metadata.project_type)
         if current_report.score >= 95 and not runtime_demo and not _has_materialized_asset(asset_manifest):
-            # A strong README is already a successful design. A no-op candidate
-            # is safer than adding low-signal assets or a generic section just
-            # to increase the numeric rubric score.
-            return existing
+            # Preserve the project-owned design, but do not freeze deterministic
+            # reading-experience defects merely because completeness is high.
+            experience = analyze_experience(existing, metadata.repo)
+            if not experience.findings:
+                return existing
+            return apply_safe_experience_fixes(existing, metadata.repo)
         if current_report.score >= 85:
-            return _render_conservative_readme(
+            conservative = _render_conservative_readme(
                 metadata,
                 existing,
                 labels,
@@ -450,6 +453,7 @@ def render_optimized_readme(
                 asset_manifest,
                 runtime_demo,
             )
+            return apply_safe_experience_fixes(conservative, metadata.repo)
 
     primary = _primary_visual(metadata, existing)
     features = _feature_cards(metadata, sections.get("features", ""), is_zh)
@@ -523,7 +527,8 @@ def render_optimized_readme(
         blocks.append(closing_visual)
     if not primary:
         blocks.insert(1, "<!-- Add a real project banner, product screenshot, or architecture image to strengthen the first screen. -->")
-    return "\n\n---\n\n".join(block.strip() for block in blocks if block.strip()) + "\n"
+    candidate = "\n\n---\n\n".join(block.strip() for block in blocks if block.strip()) + "\n"
+    return apply_safe_experience_fixes(candidate, metadata.repo)
 
 
 def optimize_project(
