@@ -10,6 +10,19 @@ from readme_magic.cli import main
 
 
 class CliTests(unittest.TestCase):
+    def test_workflow_writes_state_and_reports_execution_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            output = io.StringIO()
+            with patch("sys.argv", ["readme-magic", "workflow", "-p", str(project), "--json"]):
+                with redirect_stdout(output):
+                    main()
+            payload = json.loads(output.getvalue())
+            self.assertEqual(payload["stage"], "discover")
+            self.assertIn(payload["execution_mode"], ("hybrid", "agent_only"))
+            self.assertTrue((project / "artifacts" / "workflow-state.json").exists())
+
     def test_module_entrypoint_and_check_install_are_available(self):
         from readme_magic import __main__ as module_entry
         self.assertTrue(callable(module_entry.main))

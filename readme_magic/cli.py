@@ -17,6 +17,7 @@ from .assets import DEFAULT_CONFIG, IMAGE_MODES, load_image_config
 from .experience import analyze_experience
 from .optimizer import optimize_project
 from .quality import analyze_readme
+from .workflow import STAGES, create_state, save_state
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -575,6 +576,10 @@ Examples:
     subparsers.add_parser(
         "check-install", help="Verify the Python package and CLI dependencies"
     )
+    workflow = subparsers.add_parser("workflow", help="Show the staged Agent workflow and artifact contract")
+    workflow.add_argument("--project-path", "-p", default=".")
+    workflow.add_argument("--stage", choices=STAGES, default="discover")
+    workflow.add_argument("--json", action="store_true")
 
     # -- analyze --------------------------------------------------------------
     analyze = subparsers.add_parser("analyze", help="Score a README and suggest improvements")
@@ -667,6 +672,18 @@ Examples:
             raise SystemExit(1)
         print("- CLI: ready")
 
+    elif args.command == "workflow":
+        state = create_state(Path(args.project_path), args.stage)
+        state.artifacts["workflow_state"] = str(Path(args.project_path).resolve() / "artifacts" / "workflow-state.json")
+        state_path = save_state(state, Path(args.project_path))
+        if args.json:
+            print(json.dumps(state.to_dict(), ensure_ascii=False, indent=2))
+        else:
+            print(f"Workflow stage: {state.stage}")
+            print(f"Execution mode: {state.execution_mode}")
+            print(f"CLI available: {'yes' if state.cli_available else 'no (Agent fallback)'}")
+            print(f"State artifact: {state_path}")
+
     # -- handle analyze -------------------------------------------------------
     elif args.command == "analyze":
         try:
@@ -709,6 +726,15 @@ Examples:
             "after": after.to_dict(),
         }
         project = Path(metadata.path)
+        workflow_state = create_state(project, "review")
+        workflow_state.completed_stages = ["discover", "inspect", "score", "plan", "optimize", "preview"]
+        workflow_state.artifacts = {
+            "candidate": str(destination.resolve()),
+            "preview": str((project / args.preview_output).resolve()) if not Path(args.preview_output).is_absolute() else str(Path(args.preview_output).resolve()),
+        }
+        workflow_state.scores = {"content_before": before.score, "content_after": after.score}
+        workflow_state_path = save_state(workflow_state, project)
+        result["workflow_state"] = str(workflow_state_path.resolve())
         before_source = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
         before_experience = analyze_experience(
             before_source.read_text(encoding="utf-8") if before_source.exists() else "", metadata.repo

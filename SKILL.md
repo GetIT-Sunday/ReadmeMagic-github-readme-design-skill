@@ -21,6 +21,12 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 10. Run the analyzer against the candidate. Assess content/evidence with [references/readme-rubric.md](references/readme-rubric.md) and reading experience with [references/reading-experience-rubric.md](references/reading-experience-rubric.md). Require content/evidence >= 85, reading experience >= 80, and no blocking finding; never average the two scores.
 11. Present the candidate, the preview path, the change summary, and remaining findings. Never recommend blind commit or push. Replace `README.md` only after explicit user confirmation; use `--apply` for a backed-up replacement, then ask the user to review the diff before commit/push.
 
+## Agent execution model
+
+Treat the workflow as staged execution: discover → inspect → score → plan → optimize → preview → review → apply. Each stage must leave a structured state and reviewable artifacts. Read the relevant guidance in `workflows/` and [references/artifact-contract.md](references/artifact-contract.md).
+
+The CLI is an optional deterministic executor. Detect it at runtime and choose hybrid when available; otherwise use agent-only and report that deterministic CLI checks were unavailable. The user-facing result must have the same shape in both modes: project evidence, two scores, findings, candidate path, preview path, and apply status.
+
 ## Content Rules
 
 - Make the first screen function like a project landing page: project name, concrete value proposition, strongest available evidence, and the first useful action. Add 3-5 useful badges only when they provide verifiable context.
@@ -66,6 +72,7 @@ readme-magic inspect --project-path .
 readme-magic inspect --project-path . --json
 readme-magic check-install
 python3 -m readme_magic check-install
+readme-magic workflow --project-path . --json
 
 # Diagnose the current README
 readme-magic analyze --project-path .
