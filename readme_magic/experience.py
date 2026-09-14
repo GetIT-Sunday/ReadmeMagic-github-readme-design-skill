@@ -5,6 +5,7 @@ import math
 import re
 from typing import Dict, List, Tuple
 from urllib.parse import unquote
+from pathlib import Path
 
 
 BACK_TO_TOP_RE = re.compile(
@@ -370,3 +371,46 @@ def apply_safe_experience_fixes(content: str, repo: str = "") -> str:
         fixed = fixed.rstrip() + "\n\n---\n\n" + _canonical_star_history(detected_repo) + "\n"
     fixed = _reduce_horizontal_rules(fixed)
     return re.sub(r"\n{4,}", "\n\n\n", fixed).rstrip() + "\n"
+
+
+def audit_repository_consistency(project_path: Path, metadata=None) -> List[ExperienceFinding]:
+    """Check cross-language README parity and obvious positioning drift signals."""
+    findings: List[ExperienceFinding] = []
+    project = Path(project_path)
+    readme = project / "README.md"
+    zh = project / "README_ZH.md"
+    if readme.exists() and zh.exists():
+        en = readme.read_text(encoding="utf-8", errors="ignore")
+        cn = zh.read_text(encoding="utf-8", errors="ignore")
+        en_images = set(re.findall(r'(?:src=|\]\()([^\)"\']+)', en))
+        cn_images = set(re.findall(r'(?:src=|\]\()([^\)"\']+)', cn))
+        if en_images != cn_images:
+            findings.append(ExperienceFinding(
+                "bilingual_asset_mismatch", "consistency", "README.md ↔ README_ZH.md",
+                "medium", "English and Chinese README assets are not synchronized.",
+                "Compare headings, image paths, and important links before applying.",
+                "suggested_fix", {"english_only": sorted(en_images - cn_images), "chinese_only": sorted(cn_images - en_images)},
+                False, "bilingual_sync",
+            ))
+        en_title = re.search(r"(?m)^#\s+(.+)$", en)
+        cn_title = re.search(r"(?m)^#\s+(.+)$", cn)
+        if en_title and cn_title and ("readme" in en_title.group(1).lower()) != ("readme" in cn_title.group(1).lower()):
+            findings.append(ExperienceFinding(
+                "bilingual_positioning_mismatch", "consistency", "README.md ↔ README_ZH.md",
+                "medium", "English and Chinese README titles do not describe the same product.",
+                "Align the title and primary value proposition in both language files.",
+                "suggested_fix", {"english_title": en_title.group(1), "chinese_title": cn_title.group(1)},
+                False, "bilingual_sync",
+            ))
+    if metadata is not None and readme.exists():
+        text = readme.read_text(encoding="utf-8", errors="ignore").lower()
+        recent_signals = " ".join(metadata.features + metadata.usage_commands).lower()
+        if metadata.project_type == "cli" and "cli" not in text and "command" not in text and "命令" not in text:
+            findings.append(ExperienceFinding(
+                "positioning_drift", "consistency", "hero/first screen", "medium",
+                "The README's primary story does not mention the repository's detected CLI workflow.",
+                "Reconcile the first-screen promise with the current package entry point and tested usage.",
+                "suggested_fix", {"project_type": metadata.project_type, "signals": recent_signals},
+                False, "positioning",
+            ))
+    return findings

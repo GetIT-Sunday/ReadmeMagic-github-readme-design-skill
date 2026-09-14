@@ -14,7 +14,7 @@ from markdown_it import MarkdownIt
 
 from .analyzer import inspect_project
 from .assets import DEFAULT_CONFIG, IMAGE_MODES, load_image_config
-from .experience import analyze_experience
+from .experience import analyze_experience, audit_repository_consistency
 from .optimizer import optimize_project
 from .quality import analyze_readme
 from .workflow import STAGES, create_state, save_state
@@ -695,6 +695,14 @@ Examples:
             content = Path(metadata.readme_path).read_text(encoding="utf-8")
         report = analyze_readme(content, metadata.project_type)
         experience = analyze_experience(content, metadata.repo)
+        consistency_findings = audit_repository_consistency(Path(metadata.path), metadata)
+        experience.findings.extend(consistency_findings)
+        if consistency_findings:
+            for finding in consistency_findings:
+                experience.dimensions["navigation_consistency"] = max(
+                    0, experience.dimensions["navigation_consistency"] - 3
+                )
+            experience.score = sum(experience.dimensions.values())
         if args.json:
             print(json.dumps({"project": metadata.to_dict(), "report": report.to_dict(),
                               "experience": experience.to_dict()},
@@ -742,6 +750,12 @@ Examples:
         after_experience = analyze_experience(destination.read_text(encoding="utf-8"), metadata.repo)
         result["before_experience"] = before_experience.to_dict()
         result["after_experience"] = after_experience.to_dict()
+        result["authorization"] = {
+            "apply": bool(args.apply),
+            "commit": False,
+            "push": False,
+            "next_required_user_action": "review candidate and preview before applying" if not args.apply else "review applied README before committing",
+        }
         result["publish_ready"] = bool(
             after.score >= 85 and after_experience.score >= 80
             and not any(finding.severity == "high" for finding in after.findings + after_experience.findings)

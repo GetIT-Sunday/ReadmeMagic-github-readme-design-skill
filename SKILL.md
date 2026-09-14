@@ -21,6 +21,18 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 10. Run the analyzer against the candidate. Assess content/evidence with [references/readme-rubric.md](references/readme-rubric.md) and reading experience with [references/reading-experience-rubric.md](references/reading-experience-rubric.md). Require content/evidence >= 85, reading experience >= 80, and no blocking finding; never average the two scores.
 11. Present the candidate, the preview path, the change summary, and remaining findings. Never recommend blind commit or push. Replace `README.md` only after explicit user confirmation; use `--apply` for a backed-up replacement, then ask the user to review the diff before commit/push.
 
+## Authorization levels
+
+- “分析 / 评估 / 看看”：inspect and report only; generate no candidate unless requested.
+- “优化 / 重写”：generate `README.optimized.md` and a preview; do not modify `README.md`.
+- “直接应用 / 替换”：after the candidate and preview are shown, `--apply` may replace `README.md` and create `README.md.bak`.
+- “提交”：commit only after a separate explicit request.
+- “推送 GitHub”：push only after a separate explicit request.
+
+These permissions are independent: `apply ≠ commit ≠ push`. Never infer commit or push permission from an optimization request.
+
+After generating a preview, open or render it, report its path, summarize the visual changes, and wait for user review before applying. The completion message must include the candidate, preview, scores, findings, and next authorization step.
+
 ## Agent execution model
 
 Treat the workflow as staged execution: discover → inspect → score → plan → optimize → preview → review → apply. Each stage must leave a structured state and reviewable artifacts. Read the relevant guidance in `workflows/` and [references/artifact-contract.md](references/artifact-contract.md).
@@ -47,6 +59,8 @@ The CLI is an optional deterministic executor. Detect it at runtime and choose h
 - Match the existing project language unless the user requests another language. For bilingual output, keep each section easy to scan rather than duplicating the entire document line by line.
 - Keep the main README focused. Link to detailed documentation instead of copying it all into the front page.
 - Do not expose secrets, local absolute paths, internal-only URLs, or private repository information.
+- When both `README.md` and `README_ZH.md` exist, audit title, positioning, image paths, and important links for synchronization. Report `bilingual_asset_mismatch` or `bilingual_positioning_mismatch` instead of silently updating only one file.
+- Compare the README's primary positioning with package metadata, entry points, active UI/plugin directories, demo assets, and recently tested workflows. Report `positioning_drift` when the story no longer matches the repository's current focus.
 
 ## Safety
 
@@ -58,6 +72,7 @@ The CLI is an optional deterministic executor. Detect it at runtime and choose h
 - Treat visual generation as capability-gated. CLI GIFs require a runnable CLI, screenshots require a visual product, and benchmark figures require source data. Architecture, workflow, and overview visuals are planned for every project, but their content must come from repository or paper evidence.
 - Support image generation modes `api`, `prompt_only`, and `disabled`. Store provider settings in `.readme-magic.json`; never print API keys or write them to manifests.
 - Always provide a visual review artifact before application: `README.preview.html` by default, or the path selected with `--preview-output`. The review must place the original and candidate side by side, render supported GitHub Markdown/HTML faithfully, and expose section-level changes plus both scores and localized findings.
+- The preview is a required user-facing review step. Do not describe an optimization as complete until the preview has been opened or rendered and its path and material changes have been reported.
 - Keep prompt-only authoring artifacts under `artifacts/prompts/`; never show prompt paths or unfinished image instructions in the candidate README.
 - Render the source README's supported HTML presentation blocks (`h1`-`h6`, `ul`/`ol`/`li`, tables, links, images, details, and inline emphasis) as HTML in the preview; never expose those tags as visible text.
 - Preserve existing language switches such as `English | 中文` in the optimized first screen. Do not remove a valid navigation or language entry while rebuilding the hero.

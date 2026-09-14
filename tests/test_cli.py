@@ -23,6 +23,19 @@ class CliTests(unittest.TestCase):
             self.assertIn(payload["execution_mode"], ("hybrid", "agent_only"))
             self.assertTrue((project / "artifacts" / "workflow-state.json").exists())
 
+    def test_optimize_result_exposes_independent_authorization_levels(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "README.md").write_text("# Demo\n\nA CLI tool.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--no-preview", "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+            self.assertFalse(result["authorization"]["apply"])
+            self.assertFalse(result["authorization"]["commit"])
+            self.assertFalse(result["authorization"]["push"])
+
     def test_module_entrypoint_and_check_install_are_available(self):
         from readme_magic import __main__ as module_entry
         self.assertTrue(callable(module_entry.main))
