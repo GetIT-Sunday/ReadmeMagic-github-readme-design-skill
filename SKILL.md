@@ -10,15 +10,16 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 ## Workflow
 
 1. Locate the project root and existing `README.md`.
-2. Run `readme-magic inspect --project-path <path> --json` to identify the project type, confidence, evidence sources, and presentation gaps. From this repository, use `python -m readme_magic.cli inspect --project-path <path> --json`.
-3. Inspect the files that define the product and its real usage. Prioritize package metadata, entry points, examples, tests, license, configuration, existing documentation, and reusable images under `assets/`, `docs/`, `images/`, or `screenshots/`.
-4. Classify the repository conservatively as a product, library, CLI, AI, infrastructure, knowledge, personal, or generic project. Use the detected type and confidence to choose the information architecture; lower confidence means preserve more existing structure.
-5. Define the first-screen story: project identity, concrete value, strongest available evidence, primary audience, and the first useful action.
-6. Run `readme-magic optimize --project-path <path>` to create `README.optimized.md` without changing the original. Optimization also creates a project-aware visual asset manifest. By default it uses `prompt_only`, so users without an image API receive ready-to-use prompts under `artifacts/prompts/`.
-7. Review the candidate against the repository. Correct generic text, remove unsupported claims, and preserve valuable examples or domain explanations from the original.
-8. Use the automatically generated `README.preview.html` to compare the original and candidate in a GitHub-like layout. Review both independent scores, section changes, remaining findings, line counts, and visual asset status.
-9. Run the analyzer against the candidate. Assess content/evidence with [references/readme-rubric.md](references/readme-rubric.md) and reading experience with [references/reading-experience-rubric.md](references/reading-experience-rubric.md). Require content/evidence >= 85, reading experience >= 80, and no blocking finding; never average the two scores.
-10. Present the candidate, the preview path, the change summary, and remaining findings. Never recommend blind commit or push. Replace `README.md` only after explicit user confirmation; use `--apply` for a backed-up replacement, then ask the user to review the diff before commit/push.
+2. Verify the runtime before invoking the CLI. Skill discovery exposes `SKILL.md`, but does not install the Python package. From a checkout, run `./scripts/install.sh` or `python3 -m pip install -e <skill-repo-path>`, then `readme-magic check-install`. The module entry point `python3 -m readme_magic` is also supported.
+3. Run `readme-magic inspect --project-path <path> --json` to identify the project type, confidence, evidence sources, and presentation gaps.
+4. Inspect the files that define the product and its real usage. Prioritize package metadata, entry points, examples, tests, license, configuration, existing documentation, and reusable images under `assets/`, `docs/`, `images/`, or `screenshots/`.
+5. Classify the repository conservatively as a product, library, CLI, AI, infrastructure, knowledge, personal, or generic project. Use the detected type and confidence to choose the information architecture; lower confidence means preserve more existing structure.
+6. Define the first-screen story: project identity, concrete value, strongest available evidence, primary audience, and the first useful action.
+7. Run `readme-magic optimize --project-path <path>` to create `README.optimized.md` without changing the original. Optimization also creates a project-aware visual asset manifest. By default it uses `prompt_only`, so users without an image API receive ready-to-use prompts under `artifacts/prompts/`.
+8. Review the candidate against the repository. Correct generic text, remove unsupported claims, and preserve valuable examples or domain explanations from the original.
+9. Use the automatically generated `README.preview.html` to compare the original and candidate in a GitHub-like layout. Review both independent scores, section changes, remaining findings, line counts, and visual asset status.
+10. Run the analyzer against the candidate. Assess content/evidence with [references/readme-rubric.md](references/readme-rubric.md) and reading experience with [references/reading-experience-rubric.md](references/reading-experience-rubric.md). Require content/evidence >= 85, reading experience >= 80, and no blocking finding; never average the two scores.
+11. Present the candidate, the preview path, the change summary, and remaining findings. Never recommend blind commit or push. Replace `README.md` only after explicit user confirmation; use `--apply` for a backed-up replacement, then ask the user to review the diff before commit/push.
 
 ## Content Rules
 
@@ -63,6 +64,8 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 # Inspect project type and traceable evidence
 readme-magic inspect --project-path .
 readme-magic inspect --project-path . --json
+readme-magic check-install
+python3 -m readme_magic check-install
 
 # Diagnose the current README
 readme-magic analyze --project-path .

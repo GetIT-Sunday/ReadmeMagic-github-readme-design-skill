@@ -106,6 +106,15 @@ cd ReadmeMagic-github-readme-design-skill
 pip install -e .
 ```
 
+> **Skill and CLI are separate layers**: installing the Codex Skill makes the workflow discoverable, but does not install this Python package into your active interpreter. After cloning, install the CLI once:
+
+```bash
+./scripts/install.sh
+readme-magic check-install
+```
+
+The equivalent module entry point is python3 -m readme_magic.
+
 <details>
 <summary><strong>📋 Alternative: install via pip</strong></summary>
 <br>

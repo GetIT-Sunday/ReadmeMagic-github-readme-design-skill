@@ -105,6 +105,15 @@ cd ReadmeMagic-github-readme-design-skill
 pip install -e .
 ```
 
+> **Skill 与 CLI 是两层组件**：安装 Codex Skill 只会让工作规范可被发现，不会自动把 Python 包安装到当前解释器。克隆仓库后请先安装 CLI：
+
+```bash
+./scripts/install.sh
+readme-magic check-install
+```
+
+也可以使用模块入口：python3 -m readme_magic。
+
 <details>
 <summary><strong>📋 备选：通过 pip 安装</strong></summary>
 <br>

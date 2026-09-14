@@ -572,6 +572,10 @@ Examples:
     inspect.add_argument("--json", action="store_true",
                          help="Print a machine-readable project profile")
 
+    subparsers.add_parser(
+        "check-install", help="Verify the Python package and CLI dependencies"
+    )
+
     # -- analyze --------------------------------------------------------------
     analyze = subparsers.add_parser("analyze", help="Score a README and suggest improvements")
     analyze.add_argument("--project-path", "-p", default=".",
@@ -647,6 +651,21 @@ Examples:
             print(json.dumps({"project": metadata.to_dict()}, ensure_ascii=False, indent=2))
         else:
             _print_inspection(metadata)
+
+    # -- handle check-install -----------------------------------------------
+    elif args.command == "check-install":
+        import importlib.util
+        package_ok = importlib.util.find_spec("readme_magic") is not None
+        markdown_ok = importlib.util.find_spec("markdown_it") is not None
+        print("ReadmeMagic installation")
+        print(f"- Python: {sys.executable}")
+        print(f"- Package import: {'ok' if package_ok else 'missing'}")
+        print(f"- markdown-it-py: {'ok' if markdown_ok else 'missing'}")
+        if not package_ok or not markdown_ok:
+            print("Install from the repository with: python3 -m pip install -e .")
+            print("Or run: ./scripts/install.sh")
+            raise SystemExit(1)
+        print("- CLI: ready")
 
     # -- handle analyze -------------------------------------------------------
     elif args.command == "analyze":

@@ -30,4 +30,4 @@ readme-magic = "readme_magic.cli:main"
 name = "readme_magic"
 
 [tool.flit.sdist]
-include = ["readme_magic/templates/", "references/", "agents/", "SKILL.md"]
+include = ["readme_magic/templates/", "references/", "agents/", "scripts/install.sh", "SKILL.md"]

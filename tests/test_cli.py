@@ -10,6 +10,16 @@ from readme_magic.cli import main
 
 
 class CliTests(unittest.TestCase):
+    def test_module_entrypoint_and_check_install_are_available(self):
+        from readme_magic import __main__ as module_entry
+        self.assertTrue(callable(module_entry.main))
+
+        output = io.StringIO()
+        with patch("sys.argv", ["readme-magic", "check-install"]):
+            with redirect_stdout(output):
+                main()
+        self.assertIn("CLI: ready", output.getvalue())
+
     def test_inspect_json_exposes_profile_and_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "demo"
