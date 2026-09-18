@@ -16,7 +16,8 @@
     <a href="#-usage">Usage</a> •
     <a href="#-templates">Templates</a> •
     <a href="#-language-support">Language Support</a> •
-    <a href="#%EF%B8%8F-banner-auto-generation">Banner</a>
+    <a href="#%EF%B8%8F-banner-auto-generation">Banner</a> •
+    <a href="#-examples">Examples</a>
   </p>
 </p>
 
@@ -31,7 +32,9 @@
 <p align="center">
   <strong>English</strong> | <a href="README_ZH.md">中文</a>
 </p>
+
 ---
+
 ## ✨ Features
 
 <table>
@@ -75,6 +78,8 @@
 
 > ReadmeMagic treats README as the project's primary landing page: a strong first screen, real project visuals, scannable highlights, and the shortest verified path to first success.
 
+---
+
 ## 🖼️ Showcase
 
 ```mermaid
@@ -87,7 +92,9 @@ flowchart LR
 ```
 
 ReadmeMagic separates deterministic repository evidence from the Agent's editorial work. The CLI builds a safe, grounded candidate; the Agent strengthens the story, visuals, and differentiated capabilities before replacement.
+
 ---
+
 ## 📦 Installation
 
 > **Prerequisites**: Python 3.8+
@@ -118,6 +125,10 @@ pip install ReadmeMagic
 ```
 
 </details>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
 
 ## 🚀 Usage
 
@@ -240,12 +251,20 @@ readme-magic templates
 
 </details>
 
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
+
 ## 📖 Documentation
 
 - [`SKILL.md`](SKILL.md) — agent workflow, evidence rules, and safe apply policy
 - [`references/readme-rubric.md`](references/readme-rubric.md) — the 100-point README quality rubric
 - [`README_ZH.md`](README_ZH.md) — complete Chinese documentation
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
+
 ## 🌐 Language Support
 
 ReadmeMagic supports three language modes, selectable via `--lang`:
@@ -257,6 +276,8 @@ ReadmeMagic supports three language modes, selectable via `--lang`:
 | Bilingual | `--lang bilingual` | English heading + Chinese subtitle for each section |
 
 Each of the 5 templates ships with dedicated EN / ZH / Bilingual variants under:
+
+---
 
 ## 🖼️ Banner Auto-generation
 
@@ -280,7 +301,11 @@ readme-magic generate --template standard --banner path/to/banner.png
 ```
 
 If neither backend is available, ReadmeMagic prints clear instructions and continues without a banner.
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
+
 ## 🌐 Language Templates
 
 Each of the 5 templates ships with dedicated EN / ZH / Bilingual variants under:
@@ -307,6 +332,10 @@ readme_magic/templates/
     └── personal.md
 ```
 
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
+
 ## 📝 Templates
 
 <table>
@@ -317,7 +346,11 @@ readme_magic/templates/
 <tr><td><code>library</code></td><td>Reusable libraries and frameworks</td></tr>
 <tr><td><code>personal</code></td><td>Personal portfolio projects</td></tr>
 </table>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
+
 ## 🎨 Color Themes
 
 <table>
@@ -328,6 +361,10 @@ readme_magic/templates/
 <tr><td>Nature</td><td><code>#11998e</code></td><td><code>#38ef7d</code></td><td>Open source tools</td></tr>
 <tr><td>Vivid</td><td><code>#fc5c7d</code></td><td><code>#6a82fb</code></td><td>Creative projects</td></tr>
 </table>
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
 
 ## 📁 Project Structure
 
@@ -348,7 +385,11 @@ ReadmeMagic/
 ├── SKILL.md
 └── README.md
 ```
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
+
 ## 🧪 Development
 
 <details>
@@ -362,6 +403,10 @@ python -m unittest discover -s tests -v
 
 </details>
 
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome and greatly appreciated! Every contribution helps make ReadmeMagic better.
@@ -372,19 +417,34 @@ Contributions are welcome and greatly appreciated! Every contribution helps make
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details. Don't forget to give the project a ⭐!
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
+---
 
 ## 📄 License
 
 Distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
+
 ## 🙏 Acknowledgments
 
 - [shields.io](https://shields.io/) — badge generation
 - [star-history.com](https://star-history.com/) — Star History charts
 - [contrib.rocks](https://contrib.rocks/) — contributor avatar wall
 
+<div align="right"><a href="#readmemagic">↑ back to top</a></div>
+
 ---
+
+<p align="center">
+  <sub>If ReadmeMagic saved you time, consider giving it a ⭐ — it helps others discover it too.</sub>
+</p>
+
 <p align="center">
   <a href="https://star-history.com/#GetIT-Sunday/ReadmeMagic-github-readme-design-skill&Date">
     <img src="https://api.star-history.com/svg?repos=GetIT-Sunday/ReadmeMagic-github-readme-design-skill&type=Date" alt="Star History Chart" width="600">

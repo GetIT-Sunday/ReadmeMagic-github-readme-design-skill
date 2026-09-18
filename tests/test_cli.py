@@ -131,6 +131,8 @@ demo = "demo:main"
             self.assertIn("Concrete presentation changes", preview)
             self.assertIn("Back-to-top controls", preview)
             self.assertIn("Source verification", preview)
+            self.assertIn("SF Pro Text", preview)
+            self.assertIn("review-header", preview)
             self.assertIn("publish_ready", result)
             self.assertIn("before_experience", result)
             self.assertIn("after_experience", result)

@@ -31,6 +31,13 @@ Emit a short stage update before each real action:
 
 The user-facing result must contain a status card with project, target ref, execution mode (`hybrid` or `agent_only`), content score, reading-experience score, finding counts, candidate path, preview path, and next action. If the Codex app can open files, open the preview in a panel after generating it; otherwise provide the absolute path and a concise visual change summary.
 
+The review dashboard is a product surface, not a debug dump. Use the repository's
+`DESIGN.md` Apple-inspired tokens when styling the generated preview: restrained chrome,
+SF Pro/system typography, Action Blue (`#0066cc`) as the single accent, soft neutral canvas,
+generous spacing, and clear card hierarchy. Keep the README columns faithful to GitHub Markdown;
+apply the visual system to the surrounding review UI rather than rewriting the source README's
+design language.
+
 When the host supports tool-like progress, emit one event per completed stage and a final
 `awaiting_user_review` event. Do not compress the run into one generic paragraph. The
 machine-readable event stream and status-card schema are defined in

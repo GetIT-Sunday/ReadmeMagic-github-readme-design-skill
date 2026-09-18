@@ -28,6 +28,11 @@ If native buttons are unavailable, render the same events as concise status line
 keep the three review actions as explicit user-facing choices. Do not collapse the
 events into a single progress paragraph.
 
+The visual review shell should follow the Apple-inspired `DESIGN.md` reference: neutral
+canvas, SF Pro/system typography, one Action Blue accent, low-noise chrome, and generous
+spacing. This styling applies to the dashboard shell; the source and candidate columns
+must continue to render their Markdown/HTML faithfully.
+
 ## Status card schema
 
 ```json
