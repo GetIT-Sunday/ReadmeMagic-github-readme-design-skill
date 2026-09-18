@@ -35,6 +35,11 @@ class CliTests(unittest.TestCase):
             self.assertFalse(result["authorization"]["apply"])
             self.assertFalse(result["authorization"]["commit"])
             self.assertFalse(result["authorization"]["push"])
+            self.assertEqual(result["interaction"]["module"], "readme-magic")
+            self.assertEqual(result["interaction"]["status"], "awaiting_user_review")
+            self.assertIn("revise", result["interaction"]["next_actions"])
+            self.assertEqual(result["interaction"]["events"][-1]["status"], "awaiting_user_review")
+            self.assertTrue(Path(result["interaction_card"]).exists())
 
     def test_module_entrypoint_and_check_install_are_available(self):
         from readme_magic import __main__ as module_entry
@@ -129,6 +134,8 @@ demo = "demo:main"
             self.assertIn("publish_ready", result)
             self.assertIn("before_experience", result)
             self.assertIn("after_experience", result)
+            self.assertEqual(result["interaction"]["events"][-1]["stage"], "review")
+            self.assertEqual(result["interaction"]["target"].split("@", 1)[0], "demo")
             self.assertNotIn("From source", result["preview"]["summary"]["added_sections"])
 
     def test_preview_marks_mermaid_blocks_for_rendering(self):

@@ -1,11 +1,46 @@
 ---
 name: readme-magic
-description: Create visually polished, high-impact GitHub README.md files that clearly showcase a project's value, capabilities, screenshots or diagrams, and fastest path to first success. Inspect the actual repository, preserve useful content, score presentation and documentation quality, and produce a reviewable candidate before replacement. Use when users ask to improve, beautify, redesign, audit, rewrite, generate, translate, or fix a README; showcase or present a GitHub project; add screenshots, banners, feature grids, badges, demos, or quick starts; or invoke $readme-magic.
+description: Use ReadmeMagic as an executable README optimization agent. When a user asks in Chinese or English to optimize, beautify, redesign, audit, rewrite, or improve a README, or provides a GitHub repository URL, immediately resolve the target and run inspect → score → optimize → preview. Produce a candidate, visual comparison, evidence-backed findings, and a review choice; never stop at a prose plan or silently apply changes.
 ---
 
 # ReadmeMagic
 
 Turn repositories into compelling project pages. Optimize for visual hierarchy and project understanding while keeping every claim grounded in repository evidence.
+
+## Activation and interaction contract
+
+Activate when the request contains README/readme, GitHub repository URL, “优化/美化/重写/改进 README”, “optimize/redesign/rewrite README”, or `$readme-magic`. Do not answer with only an explanation of what ReadmeMagic could do.
+
+For an optimization request, the first assistant turn must perform an observable ReadmeMagic
+action (CLI invocation or equivalent repository inspection). A sentence such as “流程已经启动”
+or “我会先……” is not a valid stage result. If execution is blocked, report the exact blocker
+and still emit the structured `agent_only` status card; do not fabricate scores, paths, or a
+completed optimization.
+
+Resolve a local project path first. If the user supplies a GitHub URL, parse its `owner/repo` and branch or tree ref, then use the matching checkout when available. If no checkout exists and network/git access is available, clone the requested ref into a temporary workspace and run the same workflow there. If cloning is blocked, stop at a `blocked_missing_checkout` status card and ask for a local path or archive; do not silently analyze the current repository and do not present a baseline-only report as an optimization.
+
+Emit a short stage update before each real action:
+
+```text
+🧭 ReadmeMagic · Inspecting repository evidence
+📊 ReadmeMagic · Scoring content and reading experience
+🛠️ ReadmeMagic · Building a reviewable candidate
+🖼️ ReadmeMagic · Rendering the before/after preview
+⏸️ ReadmeMagic · Waiting for your review
+```
+
+The user-facing result must contain a status card with project, target ref, execution mode (`hybrid` or `agent_only`), content score, reading-experience score, finding counts, candidate path, preview path, and next action. If the Codex app can open files, open the preview in a panel after generating it; otherwise provide the absolute path and a concise visual change summary.
+
+When the host supports tool-like progress, emit one event per completed stage and a final
+`awaiting_user_review` event. Do not compress the run into one generic paragraph. The
+machine-readable event stream and status-card schema are defined in
+[references/interaction-protocol.md](references/interaction-protocol.md).
+
+At the review gate, offer exactly these actions in plain language: `应用候选 README`, `继续修改候选稿`, or `保留原 README`. Applying, committing, and pushing are separate actions.
+
+Do not present a baseline-only score as the result of optimization. The minimum successful
+optimization response includes a non-empty candidate path, a non-empty preview path, and a
+review status of `awaiting_user_review`.
 
 ## Workflow
 
@@ -15,11 +50,13 @@ Turn repositories into compelling project pages. Optimize for visual hierarchy a
 4. Inspect the files that define the product and its real usage. Prioritize package metadata, entry points, examples, tests, license, configuration, existing documentation, and reusable images under `assets/`, `docs/`, `images/`, or `screenshots/`.
 5. Classify the repository conservatively as a product, library, CLI, AI, infrastructure, knowledge, personal, or generic project. Use the detected type and confidence to choose the information architecture; lower confidence means preserve more existing structure.
 6. Define the first-screen story: project identity, concrete value, strongest available evidence, primary audience, and the first useful action.
-7. Run `readme-magic optimize --project-path <path>` to create `README.optimized.md` without changing the original. Optimization also creates a project-aware visual asset manifest. By default it uses `prompt_only`, so users without an image API receive ready-to-use prompts under `artifacts/prompts/`.
+7. Run `readme-magic optimize --project-path <path>` to create `README.optimized.md` without changing the original. Do not pass `--no-preview` in an interactive user request. Optimization also creates a project-aware visual asset manifest. By default it uses `prompt_only`, so users without an image API receive ready-to-use prompts under `artifacts/prompts/`.
 8. Review the candidate against the repository. Correct generic text, remove unsupported claims, and preserve valuable examples or domain explanations from the original.
 9. Use the automatically generated `README.preview.html` to compare the original and candidate in a GitHub-like layout. Review both independent scores, section changes, remaining findings, line counts, and visual asset status.
 10. Run the analyzer against the candidate. Assess content/evidence with [references/readme-rubric.md](references/readme-rubric.md) and reading experience with [references/reading-experience-rubric.md](references/reading-experience-rubric.md). Require content/evidence >= 85, reading experience >= 80, and no blocking finding; never average the two scores.
 11. Present the candidate, the preview path, the change summary, and remaining findings. Never recommend blind commit or push. Replace `README.md` only after explicit user confirmation; use `--apply` for a backed-up replacement, then ask the user to review the diff before commit/push.
+
+For a user request that says “优化 README”, the completion point is the review gate with a visible candidate and preview. Do not claim completion when only a baseline score or a plan has been produced.
 
 ## Authorization levels
 

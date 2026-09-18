@@ -21,6 +21,8 @@ class WorkflowState:
     artifacts: Dict[str, str] = field(default_factory=dict)
     findings: List[Dict[str, object]] = field(default_factory=list)
     scores: Dict[str, int] = field(default_factory=dict)
+    target: str = ""
+    next_actions: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)

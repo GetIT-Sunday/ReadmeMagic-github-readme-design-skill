@@ -1,4 +1,4 @@
 interface:
   display_name: "ReadmeMagic"
   short_description: "Create beautiful, high-impact GitHub README pages"
-  default_prompt: "Use $readme-magic to inspect this project and create a visually polished README that clearly showcases its value, capabilities, and fastest path to first success."
+  default_prompt: "Use $readme-magic now. In your first turn, resolve the repository path or GitHub URL and perform an observable inspect action; do not reply with a plan or '流程已启动'. Then run inspect → score → optimize → preview, emit one status event per stage, open the side-by-side preview, return the interaction-card status (candidate, preview, both scores, findings, and review actions), and stop at the review gate. Do not overwrite README.md, commit, or push without separate user authorization."

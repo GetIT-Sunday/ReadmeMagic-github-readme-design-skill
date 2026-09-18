@@ -95,6 +95,46 @@ def _print_inspection(metadata) -> None:
             print(f"- {label}: missing")
 
 
+def _git_ref(project: Path) -> str:
+    """Return the current branch when the target is a local checkout."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(project), "branch", "--show-current"],
+            capture_output=True, text=True, check=False,
+        )
+        return result.stdout.strip()
+    except OSError:
+        return ""
+
+
+def _interaction_events(
+    target: str,
+    execution_mode: str,
+    candidate: str,
+    preview: str = "",
+    actions=None,
+) -> list:
+    """Return a compact event stream that hosts can render as tool-like progress."""
+    events = [
+        {"stage": "discover", "status": "completed", "label": "Resolved target repository"},
+        {"stage": "inspect", "status": "completed", "label": "Collected repository evidence"},
+        {"stage": "score", "status": "completed", "label": "Scored content and reading experience"},
+        {"stage": "plan", "status": "completed", "label": "Classified safe fixes and review items"},
+        {"stage": "optimize", "status": "completed", "label": "Wrote candidate README", "artifact": candidate},
+    ]
+    if preview:
+        events.append({"stage": "preview", "status": "completed", "label": "Rendered before/after preview", "artifact": preview})
+    events.append({
+        "stage": "review",
+        "status": "awaiting_user_review",
+        "label": "Waiting for user review",
+        "target": target,
+        "execution_mode": execution_mode,
+        "actions": actions or ["apply", "revise", "keep_original"],
+    })
+    return events
+
+
 def _template_path(template: str, lang: str) -> Path:
     """Return the path to a template file, falling back to 'en' if not found."""
     path = TEMPLATES_DIR / lang / f"{template}.md"
@@ -431,6 +471,7 @@ def _summary_panel(summary: dict) -> str:
     asset_statuses = summary.get("asset_statuses", {})
     asset_text = ", ".join(f"{key}: {value}" for key, value in sorted(asset_statuses.items())) or "Not generated"
     readiness = "Ready for review" if summary.get("publish_ready") else "Not ready"
+    review_status = "AWAITING USER REVIEW"
     remediation = summary.get("remediation_counts", {})
     experience_items = "".join(
         f'<li><code>{html_lib.escape(item["code"])}</code> · {html_lib.escape(item["section"])} · '
@@ -452,6 +493,7 @@ def _summary_panel(summary: dict) -> str:
 
     return (
         '<aside class="audit-panel">'
+        f'<div class="review-banner">{review_status}<span>Choose apply, revise, or keep the original after inspecting both columns.</span></div>'
         '<h2>What changed</h2>'
         '<div class="metrics">'
         f'<div><strong>{html_lib.escape(str(before_score))}</strong><span>Original content &amp; evidence</span></div>'
@@ -511,7 +553,7 @@ def _preview_html(
 <html><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ReadmeMagic GitHub README preview</title>
 <style>
-:root{color-scheme:light dark}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55;margin:0;background:#f6f8fa;color:#24292f}.comparison-wrap,.single-wrap{max-width:1480px;margin:0 auto;padding:24px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px}.github-markdown{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:32px;min-width:0;box-shadow:0 1px 2px rgba(27,31,36,.04)}.github-markdown.original{border-top:4px solid #8c959f}.github-markdown.candidate{border-top:4px solid #2da44e}.file-label{position:sticky;top:0;z-index:20;font:700 13px ui-monospace,SFMono-Regular,monospace;color:#57606a;background:#f6f8fa;border-bottom:1px solid #d0d7de;margin:-32px -32px 24px;padding:12px 14px;border-radius:6px 6px 0 0;box-shadow:0 2px 3px rgba(27,31,36,.08)}.original-label{color:#57606a}.candidate-label{color:#1a7f37;background:#dafbe1}.github-markdown h1,.github-markdown h2,.github-markdown h3{line-height:1.25;border-bottom:1px solid #d8dee4;padding-bottom:.3em}.github-markdown h1{font-size:2em}.github-markdown h2{font-size:1.5em;margin-top:24px}.github-markdown h3{font-size:1.25em;border-bottom:0}.github-markdown img{max-width:100%;height:auto}.github-markdown pre{overflow:auto;background:#f6f8fa;padding:16px;border-radius:6px}.github-markdown code{font-family:ui-monospace,SFMono-Regular,monospace;background:#afb8c133;padding:.2em .4em;border-radius:6px}.github-markdown pre code{background:transparent;padding:0}.github-markdown table{border-collapse:collapse;width:100%;display:block;overflow:auto}.github-markdown td,.github-markdown th{border:1px solid #d0d7de;padding:6px 13px}.audit-panel{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:20px;margin-bottom:16px}.audit-panel h2{margin:0 0 14px}.audit-subtitle{font-size:14px;margin:18px 0 8px}.metrics{display:flex;flex-wrap:wrap;gap:10px}.metrics div{min-width:110px;padding:10px 12px;background:#f6f8fa;border-radius:6px}.metrics .delta.changed{background:#dafbe1;border:1px solid #aceebb}.metrics strong,.metrics span{display:block}.metrics strong{font-size:20px}.metrics span{font-size:12px;color:#57606a}.source-fingerprints{font-size:12px;color:#57606a;margin:10px 0}.change-columns{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:18px}.change-columns h3{font-size:13px;margin-bottom:4px}.change-columns ul{margin-top:4px;padding-left:20px}.muted,.audit-note{color:#57606a}.audit-note{font-size:13px;margin:18px 0 0}.single-wrap{max-width:1000px}@media(max-width:900px){.comparison{display:block}.github-markdown+ .github-markdown{margin-top:16px}.change-columns{grid-template-columns:1fr}}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}.github-markdown,.audit-panel{background:#161b22;border-color:#30363d}.file-label,.metrics div{background:#0d1117;border-color:#30363d}.candidate-label,.metrics .delta.changed{background:#1b4721;color:#7ee787;border-color:#2ea043}.github-markdown pre{background:#0d1117}.github-markdown td,.github-markdown th{border-color:#30363d}.metrics span,.muted,.audit-note,.source-fingerprints{color:#8b949e}}
+:root{color-scheme:light dark}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55;margin:0;background:#f6f8fa;color:#24292f}.comparison-wrap,.single-wrap{max-width:1480px;margin:0 auto;padding:24px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px}.github-markdown{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:32px;min-width:0;box-shadow:0 1px 2px rgba(27,31,36,.04)}.github-markdown.original{border-top:4px solid #8c959f}.github-markdown.candidate{border-top:4px solid #2da44e}.file-label{position:sticky;top:0;z-index:20;font:700 13px ui-monospace,SFMono-Regular,monospace;color:#57606a;background:#f6f8fa;border-bottom:1px solid #d0d7de;margin:-32px -32px 24px;padding:12px 14px;border-radius:6px 6px 0 0;box-shadow:0 2px 3px rgba(27,31,36,.08)}.original-label{color:#57606a}.candidate-label{color:#1a7f37;background:#dafbe1}.review-banner{display:flex;justify-content:space-between;gap:16px;align-items:center;background:#fff8c5;border:1px solid #d4a72c;color:#7d4e00;border-radius:6px;padding:12px 14px;margin-bottom:18px;font-weight:700}.review-banner span{font-size:13px;font-weight:400}.github-markdown h1,.github-markdown h2,.github-markdown h3{line-height:1.25;border-bottom:1px solid #d8dee4;padding-bottom:.3em}.github-markdown h1{font-size:2em}.github-markdown h2{font-size:1.5em;margin-top:24px}.github-markdown h3{font-size:1.25em;border-bottom:0}.github-markdown img{max-width:100%;height:auto}.github-markdown pre{overflow:auto;background:#f6f8fa;padding:16px;border-radius:6px}.github-markdown code{font-family:ui-monospace,SFMono-Regular,monospace;background:#afb8c133;padding:.2em .4em;border-radius:6px}.github-markdown pre code{background:transparent;padding:0}.github-markdown table{border-collapse:collapse;width:100%;display:block;overflow:auto}.github-markdown td,.github-markdown th{border:1px solid #d0d7de;padding:6px 13px}.audit-panel{background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:20px;margin-bottom:16px}.audit-panel h2{margin:0 0 14px}.audit-subtitle{font-size:14px;margin:18px 0 8px}.metrics{display:flex;flex-wrap:wrap;gap:10px}.metrics div{min-width:110px;padding:10px 12px;background:#f6f8fa;border-radius:6px}.metrics .delta.changed{background:#dafbe1;border:1px solid #aceebb}.metrics strong,.metrics span{display:block}.metrics strong{font-size:20px}.metrics span{font-size:12px;color:#57606a}.source-fingerprints{font-size:12px;color:#57606a;margin:10px 0}.change-columns{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:18px}.change-columns h3{font-size:13px;margin-bottom:4px}.change-columns ul{margin-top:4px;padding-left:20px}.muted,.audit-note{color:#57606a}.audit-note{font-size:13px;margin:18px 0 0}.single-wrap{max-width:1000px}@media(max-width:900px){.comparison{display:block}.github-markdown+ .github-markdown{margin-top:16px}.change-columns{grid-template-columns:1fr}.review-banner{display:block}.review-banner span{display:block;margin-top:6px}}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}.github-markdown,.audit-panel{background:#161b22;border-color:#30363d}.file-label,.metrics div{background:#0d1117;border-color:#30363d}.candidate-label,.metrics .delta.changed{background:#1b4721;color:#7ee787;border-color:#2ea043}.review-banner{background:#3b2300;border-color:#9e6a03;color:#f0c36d}.github-markdown pre{background:#0d1117}.github-markdown td,.github-markdown th{border-color:#30363d}.metrics span,.muted,.audit-note,.source-fingerprints{color:#8b949e}}
 </style><script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script><script>if(window.mermaid){mermaid.initialize({startOnLoad:true,theme:'base'});}</script></head><body>""" + body + "</body></html>"
 
 
@@ -734,20 +776,40 @@ Examples:
             "after": after.to_dict(),
         }
         project = Path(metadata.path)
-        workflow_state = create_state(project, "review")
-        workflow_state.completed_stages = ["discover", "inspect", "score", "plan", "optimize", "preview"]
+        workflow_state = create_state(project, "apply" if args.apply else "review")
+        branch = _git_ref(project)
+        workflow_state.target = f"{metadata.repo}@{branch}" if metadata.repo and branch else (metadata.repo or metadata.name)
+        workflow_state.completed_stages = ["discover", "inspect", "score", "plan", "optimize"]
+        if not args.no_preview:
+            workflow_state.completed_stages.append("preview")
         workflow_state.artifacts = {
             "candidate": str(destination.resolve()),
-            "preview": str((project / args.preview_output).resolve()) if not Path(args.preview_output).is_absolute() else str(Path(args.preview_output).resolve()),
         }
+        if not args.no_preview:
+            workflow_state.artifacts["preview"] = (
+                str((project / args.preview_output).resolve())
+                if not Path(args.preview_output).is_absolute()
+                else str(Path(args.preview_output).resolve())
+            )
         workflow_state.scores = {"content_before": before.score, "content_after": after.score}
         workflow_state_path = save_state(workflow_state, project)
         result["workflow_state"] = str(workflow_state_path.resolve())
-        before_source = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
+        if args.apply and (project / "README.md.bak").exists():
+            before_source = project / "README.md.bak"
+        else:
+            before_source = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
         before_experience = analyze_experience(
             before_source.read_text(encoding="utf-8") if before_source.exists() else "", metadata.repo
         )
         after_experience = analyze_experience(destination.read_text(encoding="utf-8"), metadata.repo)
+        consistency_findings = audit_repository_consistency(project, metadata)
+        after_experience.findings.extend(consistency_findings)
+        if consistency_findings:
+            for finding in consistency_findings:
+                after_experience.dimensions["navigation_consistency"] = max(
+                    0, after_experience.dimensions["navigation_consistency"] - 3
+                )
+            after_experience.score = sum(after_experience.dimensions.values())
         result["before_experience"] = before_experience.to_dict()
         result["after_experience"] = after_experience.to_dict()
         result["authorization"] = {
@@ -755,6 +817,29 @@ Examples:
             "commit": False,
             "push": False,
             "next_required_user_action": "review candidate and preview before applying" if not args.apply else "review applied README before committing",
+        }
+        all_findings = list(after.findings) + list(after_experience.findings)
+        finding_counts = {
+            kind: sum(
+                getattr(finding, "remediation", "suggested_fix") == kind
+                for finding in all_findings
+            )
+            for kind in ("safe_fix", "suggested_fix", "needs_input")
+        }
+        result["interaction"] = {
+            "module": "readme-magic",
+            "stage": "review" if not args.apply else "apply",
+            "status": "awaiting_user_review" if not args.apply else "applied_pending_commit_review",
+            "target": workflow_state.target,
+            "execution_mode": workflow_state.execution_mode,
+            "scores": {
+                "content_evidence": after.score,
+                "reading_experience": after_experience.score,
+            },
+            "findings": finding_counts,
+            "candidate": str(destination.resolve()),
+            "preview": None,
+            "next_actions": ["apply", "revise", "keep_original"] if not args.apply else ["review_application", "commit"],
         }
         result["publish_ready"] = bool(
             after.score >= 85 and after_experience.score >= 80
@@ -790,15 +875,63 @@ Examples:
                 encoding="utf-8",
             )
             result["preview"] = {"path": str(preview_path.resolve()), "summary": summary}
+            result["interaction"]["preview"] = str(preview_path.resolve())
+
+        result["interaction"]["events"] = _interaction_events(
+            result["interaction"]["target"],
+            result["interaction"]["execution_mode"],
+            result["interaction"]["candidate"],
+            result["interaction"].get("preview") or "",
+            result["interaction"]["next_actions"],
+        )
+        # Persist the same interaction contract that is returned to the Agent.
+        # This makes a run inspectable even when the caller does not request JSON.
+        workflow_state.status = result["interaction"]["status"]
+        workflow_state.target = result["interaction"]["target"]
+        workflow_state.scores = {
+            "content_before": before.score,
+            "content_after": after.score,
+            "reading_experience_before": before_experience.score,
+            "reading_experience_after": after_experience.score,
+        }
+        workflow_state.artifacts["candidate"] = str(destination.resolve())
+        if result.get("preview"):
+            workflow_state.artifacts["preview"] = result["preview"]["path"]
+        workflow_state.findings = [
+            {
+                "code": finding.code,
+                "section": getattr(finding, "section", "content"),
+                "severity": finding.severity,
+                "remediation": getattr(finding, "remediation", "suggested_fix"),
+                "message": finding.message,
+            }
+            for finding in (after.findings + after_experience.findings)
+        ]
+        workflow_state.next_actions = result["interaction"]["next_actions"]
+        save_state(workflow_state, project)
+        interaction_path = project / "artifacts" / "interaction-card.json"
+        interaction_path.parent.mkdir(parents=True, exist_ok=True)
+        interaction_path.write_text(
+            json.dumps(result["interaction"], ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        result["interaction_card"] = str(interaction_path.resolve())
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             print(f"Optimized README -> {destination.resolve()}")
+            for event in result["interaction"]["events"]:
+                marker = "⏸️" if event["status"] == "awaiting_user_review" else "✓"
+                print(f"{marker} ReadmeMagic · {event['stage']}: {event['label']}")
+            print("ReadmeMagic status: awaiting_user_review" if not args.apply else "ReadmeMagic status: applied_pending_commit_review")
+            print(f"Execution mode: {workflow_state.execution_mode}")
+            print(f"Target: {workflow_state.target}")
             print(f"Content & Evidence: {before.score}/100 -> {after.score}/100")
             print(f"Reading Experience: {before_experience.score}/100 -> {after_experience.score}/100")
             print(f"Publish readiness: {'Ready for review' if result['publish_ready'] else 'Not ready'}")
             if result.get("preview"):
                 print(f"Visual review -> {result['preview']['path']}")
+            print(f"Interaction card -> {interaction_path.resolve()}")
             if manifest_path.exists():
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 statuses = {}

@@ -5,6 +5,7 @@ Each optimization run may create these reviewable artifacts under artifacts/:
 | Artifact | Meaning |
 |---|---|
 | workflow-state.json | Current stage, execution mode, completed stages, scores, findings, and paths |
+| interaction-card.json | Compact status card and review actions for an Agent or host UI |
 | asset-manifest.json | Visual assets, evidence sources, generation mode, and statuses |
 | prompts/*.prompt.md | Authoring prompts when image mode is prompt_only |
 | runtime/*.txt | Explicitly requested verified command transcripts |

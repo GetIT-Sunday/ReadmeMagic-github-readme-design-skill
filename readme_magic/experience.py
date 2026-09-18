@@ -3,7 +3,7 @@
 from dataclasses import asdict, dataclass, field
 import math
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 from urllib.parse import unquote
 from pathlib import Path
 
@@ -382,8 +382,15 @@ def audit_repository_consistency(project_path: Path, metadata=None) -> List[Expe
     if readme.exists() and zh.exists():
         en = readme.read_text(encoding="utf-8", errors="ignore")
         cn = zh.read_text(encoding="utf-8", errors="ignore")
-        en_images = set(re.findall(r'(?:src=|\]\()([^\)"\']+)', en))
-        cn_images = set(re.findall(r'(?:src=|\]\()([^\)"\']+)', cn))
+        # Compare visual assets only. A language switch such as
+        # ``[中文](README_ZH.md)`` is a navigation link, not an asset.
+        def visual_assets(markdown: str) -> Set[str]:
+            html_assets = re.findall(r'(?is)<img\b[^>]*\bsrc=["\']([^"\']+)', markdown)
+            md_assets = re.findall(r'!\[[^\]]*\]\(([^)\s]+)', markdown)
+            return {unquote(item).strip() for item in (*html_assets, *md_assets) if item.strip()}
+
+        en_images = visual_assets(en)
+        cn_images = visual_assets(cn)
         if en_images != cn_images:
             findings.append(ExperienceFinding(
                 "bilingual_asset_mismatch", "consistency", "README.md ↔ README_ZH.md",

@@ -1,6 +1,13 @@
+import tempfile
 import unittest
+from pathlib import Path
 
-from readme_magic.experience import analyze_experience, apply_safe_experience_fixes
+from readme_magic.analyzer import inspect_project
+from readme_magic.experience import (
+    analyze_experience,
+    apply_safe_experience_fixes,
+    audit_repository_consistency,
+)
 
 
 class ExperienceTests(unittest.TestCase):
@@ -87,6 +94,23 @@ Text.
     def test_star_history_is_not_required_without_known_repo(self):
         report = analyze_experience("# Local\n\n## Usage\n\nText.\n")
         self.assertNotIn("community_star_history", {finding.code for finding in report.findings})
+
+    def test_bilingual_language_switch_is_not_reported_as_asset_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "README.md").write_text(
+                '<p align="center"><a href="README_ZH.md">中文</a></p>\n'
+                '<p align="center"><img src="assets/banner.png" alt="banner"></p>\n',
+                encoding="utf-8",
+            )
+            (project / "README_ZH.md").write_text(
+                '<p align="center"><a href="README.md">English</a></p>\n'
+                '<p align="center"><img src="assets/banner.png" alt="banner"></p>\n',
+                encoding="utf-8",
+            )
+            metadata = inspect_project(project)
+            findings = audit_repository_consistency(project, metadata)
+            self.assertNotIn("bilingual_asset_mismatch", {item.code for item in findings})
 
 
 if __name__ == "__main__":
