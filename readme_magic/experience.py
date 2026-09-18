@@ -363,6 +363,9 @@ def _repair_navigation(content: str) -> str:
 def apply_safe_experience_fixes(content: str, repo: str = "") -> str:
     """Apply only deterministic fixes; leave structural/copy judgments for review."""
     fixed = _split_oversized_usage(_deduplicate_star_cta(_repair_navigation(_trim_back_to_top(content))))
+    # Removing a repeated footer CTA can leave an empty presentation wrapper.
+    # Drop it so the optimized README never ships an invisible HTML artifact.
+    fixed = re.sub(r'(?is)\n*<p\s+align=["\']center["\']>\s*<sub>\s*</sub>\s*</p>\s*', "\n", fixed)
     stars = _star_instances(fixed)
     detected_repo = repo or next((_repo_from_star(match.group(0)) for match in stars if _repo_from_star(match.group(0))), "")
     if detected_repo:

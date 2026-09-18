@@ -77,6 +77,7 @@ If Demo saved you time, consider giving it a ⭐.
         self.assertLessEqual(fixed.count("\n---\n"), 2)
         report = analyze_experience(fixed)
         self.assertNotIn("repeated_call_to_action", {finding.code for finding in report.findings})
+        self.assertNotIn("<sub></sub>", fixed)
 
     def test_safe_fix_removes_only_broken_header_navigation(self):
         readme = """# Demo
