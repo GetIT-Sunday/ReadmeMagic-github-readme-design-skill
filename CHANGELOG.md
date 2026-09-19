@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preservation of unmanaged README sections and stable generated anchors.
 - A real CLI transcript GIF for the self-test repository example.
 
+## [2.1.0] - 2026-09-19
+
+### Added
+
+- Consistent `2.1.0` version identity across the Skill metadata, Python package,
+  CLI, workflow state, and interaction card.
+- `--version` and `check-install` output now report the installed ReadmeMagic
+  version so stale Skill checkouts are easy to identify.
+- Versioned interaction protocol metadata for Agent hosts and preview artifacts.
+
 ## [2.0.0] - 2026-07-16
 
 ### Added

@@ -6,10 +6,26 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from readme_magic import __version__
 from readme_magic.cli import main
 
 
 class CliTests(unittest.TestCase):
+    def test_version_is_reported_by_cli_and_install_check(self):
+        output = io.StringIO()
+        with patch("sys.argv", ["readme-magic", "--version"]):
+            with self.assertRaises(SystemExit) as exit_info:
+                with redirect_stdout(output):
+                    main()
+        self.assertEqual(exit_info.exception.code, 0)
+        self.assertEqual(output.getvalue().strip(), f"ReadmeMagic {__version__}")
+
+        output = io.StringIO()
+        with patch("sys.argv", ["readme-magic", "check-install"]):
+            with redirect_stdout(output):
+                main()
+        self.assertIn(f"ReadmeMagic installation (v{__version__})", output.getvalue())
+
     def test_workflow_writes_state_and_reports_execution_mode(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "demo"
@@ -20,6 +36,7 @@ class CliTests(unittest.TestCase):
                     main()
             payload = json.loads(output.getvalue())
             self.assertEqual(payload["stage"], "discover")
+            self.assertEqual(payload["readme_magic_version"], __version__)
             self.assertIn(payload["execution_mode"], ("hybrid", "agent_only"))
             self.assertTrue((project / "artifacts" / "workflow-state.json").exists())
 
@@ -32,10 +49,12 @@ class CliTests(unittest.TestCase):
                 with redirect_stdout(io.StringIO()) as output:
                     main()
             result = json.loads(output.getvalue())
+            self.assertEqual(result["readme_magic_version"], __version__)
             self.assertFalse(result["authorization"]["apply"])
             self.assertFalse(result["authorization"]["commit"])
             self.assertFalse(result["authorization"]["push"])
             self.assertEqual(result["interaction"]["module"], "readme-magic")
+            self.assertEqual(result["interaction"]["version"], __version__)
             self.assertEqual(result["interaction"]["status"], "awaiting_user_review")
             self.assertIn("revise", result["interaction"]["next_actions"])
             self.assertEqual(result["interaction"]["events"][-1]["status"], "awaiting_user_review")

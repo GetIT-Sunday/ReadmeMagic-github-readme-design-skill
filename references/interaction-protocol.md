@@ -54,6 +54,7 @@ must continue to render their Markdown/HTML faithfully.
 ```json
 {
   "module": "readme-magic",
+  "version": "2.1.0",
   "stage": "review",
   "status": "awaiting_user_review",
   "target": "owner/repo@branch",

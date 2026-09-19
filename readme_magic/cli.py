@@ -12,6 +12,7 @@ from pathlib import Path
 
 from markdown_it import MarkdownIt
 
+from . import __version__
 from .analyzer import inspect_project
 from .assets import DEFAULT_CONFIG, IMAGE_MODES, load_image_config
 from .experience import analyze_experience, audit_repository_consistency
@@ -354,7 +355,7 @@ def _generate_readme(args) -> str:
 
 def _build_badges(badge_names: list, repo: str) -> str:
     mapping = {
-        "version": f'<img src="https://img.shields.io/badge/version-1.0.0-blue?style=flat-square" alt="Version">',
+        "version": f'<img src="https://img.shields.io/badge/version-{__version__}-blue?style=flat-square" alt="Version">',
         "license": f'<img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">',
         "python":  f'<img src="https://img.shields.io/badge/python-3.8+-yellow?style=flat-square" alt="Python">',
         "stars":   f'<img src="https://img.shields.io/github/stars/{repo}?style=social" alt="Stars">',
@@ -720,7 +721,7 @@ Examples:
                       help="Language for descriptions (default: en)")
 
     # ── version ───────────────────────────────────────────────────────────────
-    parser.add_argument("--version", "-v", action="version", version="ReadmeMagic 2.0.0")
+    parser.add_argument("--version", "-v", action="version", version=f"ReadmeMagic {__version__}")
 
     args = parser.parse_args()
 
@@ -748,7 +749,7 @@ Examples:
         markdown_ok = importlib.util.find_spec("markdown_it") is not None
         module_entry_ok = importlib.util.find_spec("readme_magic.__main__") is not None
         executable = shutil.which("readme-magic")
-        print("ReadmeMagic installation")
+        print(f"ReadmeMagic installation (v{__version__})")
         print(f"- Python: {sys.executable}")
         print(f"- Python version: {platform.python_version()}")
         print(f"- Package import: {'ok' if package_ok else 'missing'}")
@@ -771,6 +772,7 @@ Examples:
             print(json.dumps(state.to_dict(), ensure_ascii=False, indent=2))
         else:
             print(f"Workflow stage: {state.stage}")
+            print(f"ReadmeMagic version: {__version__}")
             print(f"Execution mode: {state.execution_mode}")
             print(f"CLI available: {'yes' if state.cli_available else 'no (Agent fallback)'}")
             print(f"State artifact: {state_path}")
@@ -827,6 +829,7 @@ Examples:
         has_readme = bool(metadata.readme_path and Path(metadata.readme_path).is_file())
         workflow_kind = "optimize" if has_readme else "create"
         result = {
+            "readme_magic_version": __version__,
             "project": metadata.to_dict(),
             "output": str(destination.resolve()),
             "applied": args.apply,
@@ -897,6 +900,7 @@ Examples:
         }
         result["interaction"] = {
             "module": "readme-magic",
+            "version": __version__,
             "stage": "review" if not args.apply else "apply",
             "status": "awaiting_user_review" if not args.apply else "applied_pending_commit_review",
             "target": workflow_state.target,

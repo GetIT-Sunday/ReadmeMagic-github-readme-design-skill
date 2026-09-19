@@ -1,5 +1,7 @@
 ---
 name: readme-magic
+metadata:
+  version: "2.1.0"
 description: Use ReadmeMagic as an executable README optimization agent. When a user asks in Chinese or English to optimize, beautify, redesign, audit, rewrite, or improve a README, or provides a GitHub repository URL, immediately resolve the target and run inspect → score → optimize → preview. Produce a candidate, visual comparison, evidence-backed findings, and a review choice; never stop at a prose plan or silently apply changes.
 ---
 

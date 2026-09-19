@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Dict, List
 
+from . import __version__
+
 STAGES = ("discover", "inspect", "score", "plan", "optimize", "preview", "review", "apply")
 PREVIEW_STATUSES = ("not_generated", "generated_pending_open", "opened", "awaiting_user_review")
 
@@ -13,6 +15,7 @@ PREVIEW_STATUSES = ("not_generated", "generated_pending_open", "opened", "awaiti
 class WorkflowState:
     workflow: str = "readme-optimization"
     version: str = "1.0"
+    readme_magic_version: str = __version__
     stage: str = "discover"
     status: str = "ready"
     project_path: str = ""
