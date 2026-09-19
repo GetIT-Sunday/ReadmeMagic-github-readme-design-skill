@@ -1,7 +1,7 @@
 ---
 name: readme-magic
 metadata:
-  version: "2.1.1"
+  version: "2.2.0"
 description: Use ReadmeMagic as an executable README optimization agent. When a user asks in Chinese or English to optimize, beautify, redesign, audit, rewrite, or improve a README, or provides a GitHub repository URL, immediately resolve the target and run inspect → score → optimize → preview. Produce a candidate, visual comparison, evidence-backed findings, and a review choice; never stop at a prose plan or silently apply changes.
 ---
 
@@ -59,13 +59,20 @@ review status of `awaiting_user_review`.
 4. Inspect the files that define the product and its real usage. Prioritize package metadata, entry points, examples, tests, license, configuration, existing documentation, and reusable images under `assets/`, `docs/`, `images/`, or `screenshots/`.
 5. Classify the repository conservatively as a product, library, CLI, AI, infrastructure, knowledge, personal, or generic project. Use the detected type and confidence to choose the information architecture; lower confidence means preserve more existing structure.
 6. Define the first-screen story: project identity, concrete value, strongest available evidence, primary audience, and the first useful action.
-7. Run `readme-magic optimize --project-path <path> --image-mode native`. If `README.md` exists, this creates `README.optimized.md` without changing the original; if it does not exist, this creates `README.generated.md` and enters the first-README creation flow. Do not pass `--no-preview` in an interactive user request. Optimization also creates a project-aware visual asset manifest. For architecture, workflow, and overview visuals, call the host `image_generation` tool once per `interaction.visual_actions` item with its repository-grounded prompt, save each returned image under `save_to`, then rerun `readme-magic optimize --image-mode native` so the now-available images are embedded in the candidate. If native generation is unavailable, explicitly fall back to `api` or `prompt_only` and report the fallback.
+7. Run `readme-magic optimize --project-path <path> --image-mode native`. If `README.md` exists, this creates `README.optimized.md` without changing the original; if it does not exist, this creates `README.generated.md` and enters the first-README creation flow. Do not pass `--no-preview` in an interactive user request. Optimization also creates a project-aware visual asset manifest and a gap-by-gap repair plan. For architecture, workflow, and overview visuals, inspect `interaction.visual_capability_probe`: if the host exposes `image_generation`, call it once per `interaction.visual_actions` item with its repository-grounded prompt, save each returned image under `save_to`, then rerun `readme-magic optimize --image-mode native` so the now-available images are embedded in the candidate. If native generation is unavailable, report that exact limitation and offer the complete prompt, prompt artifact path, save path, and a rerun instruction under the `prompt_only` option. Never silently treat a prompt as a generated image.
 8. Review the candidate against the repository. Correct generic text, remove unsupported claims, and preserve valuable examples or domain explanations from the original.
 9. Use the automatically generated `README.preview.html` to compare the original and candidate in a GitHub-like layout. For a repository without README.md, render a single clearly labeled generated candidate and do not invent an original score or before/after delta. Review both independent scores, section changes, remaining findings, line counts, and visual asset status. In Codex desktop, call `mcp__codex_app__open_in_codex` for this exact file before the final response; then mark it opened and verify `artifacts/interaction-card.json` has `status=awaiting_user_review` and `next_actions=["apply", "revise", "keep_original"]`.
 10. Run the analyzer against the candidate. Assess the 70-point core documentation score and the 30-point showcase enhancement score with [references/readme-rubric.md](references/readme-rubric.md), then assess reading experience with [references/reading-experience-rubric.md](references/reading-experience-rubric.md). Require core documentation >= 56/70, reading experience >= 80, and no blocking finding for basic review readiness. Treat the strict evidence gate as an optional showcase-completeness signal; do not make screenshots, GIFs, or custom architecture art a universal hard gate.
 11. Present the candidate, the preview path, the change summary, and remaining findings. Never recommend blind commit or push. Replace `README.md` only after explicit user confirmation; use `--apply` for a backed-up replacement, then ask the user to review the diff before commit/push.
 
 For a user request that says “优化 README”, the completion point is the review gate with a visible candidate and preview. Do not claim completion when only a baseline score or a plan has been produced.
+
+12. Present every unresolved gap as an individual repair card. Each card must include the
+finding code, repository evidence, user impact, recommendation, remediation class, and
+explicit choices. Non-visual gaps offer `自动修复`, `继续修改候选稿`, and `暂时保留`.
+Visual gaps offer `让当前 Agent 直接生成`, `我用外部生图工具`, and `暂时跳过`.
+Ask the user which cards to act on; do not collapse all gaps into one score or silently
+choose a visual provider.
 
 ### Bilingual README mode
 

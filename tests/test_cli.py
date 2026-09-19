@@ -170,6 +170,27 @@ demo = "demo:main"
                 {asset["status"] for asset in result["asset_manifest"]["assets"]},
                 {"native_required"},
             )
+            self.assertTrue(result["interaction"]["visual_capability_probe"]["required"])
+            visual_gaps = [item for item in result["interaction"]["gap_plan"] if item.get("visual_asset")]
+            self.assertTrue(visual_gaps)
+            self.assertIn("native_generate", {option["id"] for option in visual_gaps[0]["options"]})
+            self.assertIn("prompt_only", {option["id"] for option in visual_gaps[0]["options"]})
+
+    def test_prompt_only_gap_cards_expose_copyable_prompt_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "README.md").write_text("# Demo\n\nA project.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+            visual_gaps = [item for item in result["interaction"]["gap_plan"] if item.get("visual_asset")]
+            self.assertTrue(visual_gaps)
+            self.assertTrue(Path(visual_gaps[0]["visual_asset"]["prompt_path"]).exists())
+            self.assertTrue(visual_gaps[0]["visual_asset"]["prompt"])
+            self.assertTrue(visual_gaps[0]["evidence"])
+            self.assertTrue(visual_gaps[0]["impact"])
 
     def test_module_entrypoint_and_check_install_are_available(self):
         from readme_magic import __main__ as module_entry

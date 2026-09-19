@@ -41,6 +41,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic bilingual candidate generation when a repository already contains
   both English and Chinese README files.
 
+## [2.2.0] - 2026-09-19
+
+### Added
+
+- Gap-by-gap repair cards with evidence, impact, recommendation, remediation
+  class, and explicit user choices.
+- Native image-generation capability probing with a prompt-only fallback that
+  exposes the complete prompt, artifact path, save path, and rerun action.
+- Interactive status-card fields for `gap_plan` and `visual_capability_probe`.
+
 ## [2.0.0] - 2026-07-16
 
 ### Added

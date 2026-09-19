@@ -54,7 +54,7 @@ must continue to render their Markdown/HTML faithfully.
 ```json
 {
   "module": "readme-magic",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "stage": "review",
   "status": "awaiting_user_review",
   "target": "owner/repo@branch",
@@ -74,6 +74,36 @@ must continue to render their Markdown/HTML faithfully.
   "preview_status": "opened",
   "host_action": null,
   "visual_actions": [],
+  "visual_capability_probe": {
+    "status": "pending",
+    "tool": "image_generation",
+    "on_available": "generate requested visual assets and rerun optimize",
+    "on_unavailable": "show complete prompt and save path under prompt_only"
+  },
+  "gap_plan": [
+    {
+      "id": "gap-1",
+      "code": "architecture_quality",
+      "problem": "The architecture explanation is not presented as a polished visual",
+      "evidence": {"check": "architecture_quality", "source": "automated_preflight"},
+      "impact": "Readers cannot map the README narrative to real modules and data flow",
+      "recommendation": "Use a repository-grounded PNG/SVG architecture figure",
+      "remediation": "suggested_fix",
+      "question": "要现在补这张视觉资产吗？",
+      "options": [
+        {"id": "native_generate", "label": "让当前 Agent 直接生成"},
+        {"id": "prompt_only", "label": "我用外部生图工具"},
+        {"id": "skip", "label": "暂时跳过"}
+      ],
+      "visual_asset": {
+        "key": "architecture",
+        "status": "native_required",
+        "prompt": "...",
+        "prompt_path": "/absolute/path/artifacts/prompts/architecture.prompt.md",
+        "save_to": "/absolute/path/assets/generated/architecture.png"
+      }
+    }
+  ],
   "bilingual": {
     "enabled": true,
     "candidates": ["/absolute/path/README.optimized.md", "/absolute/path/README_ZH.optimized.md"],
@@ -92,6 +122,12 @@ than displaying a fabricated zero score.
 `showcase_enhancement` is scored out of 30 and captures optional visual polish.
 `strict_evidence_gate` means the optional showcase package is complete. A failed gate
 should be shown as a showcase gap, not as proof that the README is unusable.
+
+`gap_plan` is the interactive remediation surface. The Agent must show it after scoring,
+answer the user's provider question for visual gaps, and wait for the selected actions
+before applying optional changes. `visual_capability_probe.status` is `pending` until the
+host confirms whether native `image_generation` is available; it must never be inferred
+from the presence of the Python CLI.
 
 ## Review choices
 

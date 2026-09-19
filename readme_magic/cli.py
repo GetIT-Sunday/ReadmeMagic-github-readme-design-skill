@@ -145,6 +145,118 @@ def _interaction_events(
     return events
 
 
+def _finding_value(finding, name: str, default=""):
+    return getattr(finding, name, default)
+
+
+def _gap_plan(report, experience, asset_manifest=None, project: Path = None) -> list:
+    """Turn findings into user-selectable, evidence-backed repair cards."""
+    findings = list(getattr(report, "findings", [])) + list(getattr(experience, "findings", []))
+    visual_keys = {
+        "visual_story": "introduction",
+        "showcase_evidence": "workflow",
+        "architecture_quality": "architecture",
+        "dynamic_demo": "workflow",
+    }
+    raw_assets = getattr(asset_manifest, "assets", None)
+    if raw_assets is None and isinstance(asset_manifest, dict):
+        raw_assets = asset_manifest.get("assets", [])
+    raw_assets = raw_assets or []
+    assets = {}
+    for asset in raw_assets:
+        key = getattr(asset, "key", None) or (asset.get("key") if isinstance(asset, dict) else None)
+        if key:
+            assets[key] = asset
+    impact_by_code = {
+        "visual_story": "读者在首屏无法快速理解项目身份或结果",
+        "showcase_evidence": "读者看不到项目能力的可验证证明",
+        "architecture_quality": "读者无法把 README 叙述映射到真实模块和数据流",
+        "dynamic_demo": "读者无法直观看到运行过程或交互结果",
+        "first_screen": "首屏无法在几秒内说明项目是什么、为谁服务",
+        "first_success": "新用户无法快速从安装走到第一个成功结果",
+        "type_structure": "项目类型对应的关键参考信息不易定位",
+        "installation": "用户缺少可复制的安装入口",
+        "documentation": "深入文档和示例的路径不清晰",
+        "duplicate_sections": "同一主题出现多个入口，增加阅读决策成本",
+        "repeated_back_to_top": "重复导航打断内容节奏",
+    }
+    plan = []
+    for index, finding in enumerate(findings, 1):
+        code = _finding_value(finding, "code", f"finding_{index}")
+        item = {
+            "id": f"gap-{index}",
+            "code": code,
+            "section": _finding_value(finding, "section", "content"),
+            "severity": _finding_value(finding, "severity", "medium"),
+            "problem": _finding_value(finding, "message", "README quality gap detected."),
+            "recommendation": _finding_value(finding, "recommendation", "Review and address this gap."),
+            "remediation": _finding_value(finding, "remediation", "suggested_fix"),
+            "evidence": _finding_value(finding, "evidence", {}) or {"check": code, "source": "automated_preflight"},
+            "impact": impact_by_code.get(code, "该缺口会降低 README 的可理解性或可验证性"),
+            "options": [],
+        }
+        if code in visual_keys:
+            key = visual_keys[code]
+            asset = assets.get(key)
+            asset_info = {"key": key}
+            if asset:
+                def asset_value(name, default=""):
+                    return getattr(asset, name, default) if not isinstance(asset, dict) else asset.get(name, default)
+                asset_info.update({
+                    "status": asset_value("status"),
+                    "purpose": asset_value("purpose"),
+                    "prompt": asset_value("prompt"),
+                    "save_to": str((project / asset_value("filename")).resolve()) if project else asset_value("filename"),
+                    "prompt_path": str((project / "artifacts" / "prompts" / f"{key}.prompt.md").resolve()) if project else "",
+                })
+            item["visual_asset"] = asset_info
+            item["question"] = "要现在补这张视觉资产吗？"
+            item["options"] = [
+                {
+                    "id": "native_generate",
+                    "label": "让当前 Agent 直接生成",
+                    "availability": "host_probe_required",
+                    "action": "probe image_generation; generate and save asset; rerun optimize",
+                },
+                {
+                    "id": "prompt_only",
+                    "label": "我用外部生图工具",
+                    "availability": "always",
+                    "action": "copy the repository-grounded prompt, save the image to save_to, rerun optimize",
+                },
+                {
+                    "id": "skip",
+                    "label": "暂时跳过",
+                    "availability": "always",
+                    "action": "keep the gap visible as optional showcase work",
+                },
+            ]
+        else:
+            item["question"] = "要按推荐方案自动修复，还是先保留现状？"
+            item["options"] = [
+                {
+                    "id": "auto_fix",
+                    "label": "自动修复",
+                    "availability": "safe" if item["remediation"] == "safe_fix" else "review_required",
+                    "action": "apply the deterministic fix to the candidate only",
+                },
+                {
+                    "id": "revise",
+                    "label": "继续修改候选稿",
+                    "availability": "always",
+                    "action": "revise only this section and regenerate the preview",
+                },
+                {
+                    "id": "keep",
+                    "label": "暂时保留",
+                    "availability": "always",
+                    "action": "leave the gap documented for later review",
+                },
+            ]
+        plan.append(item)
+    return plan
+
+
 def _template_path(template: str, lang: str) -> Path:
     """Return the path to a template file, falling back to 'en' if not found."""
     path = TEMPLATES_DIR / lang / f"{template}.md"
@@ -508,6 +620,7 @@ def _summary_panel(summary: dict) -> str:
         for item in summary.get("experience_findings", [])
     ) or '<li class="muted">No remaining reading-experience findings</li>'
     presentation = summary.get("presentation_changes", {})
+    gap_plan = summary.get("gap_plan", [])
 
     def delta_card(key, label):
         values = presentation.get(key, {})
@@ -560,6 +673,18 @@ def _summary_panel(summary: dict) -> str:
         f'<div class="experience-findings"><h3>Reading-experience findings</h3><ul>{experience_items}</ul>'
         f'<p class="muted">Safe fixes: {remediation.get("safe_fix", 0)} · Suggested fixes: {remediation.get("suggested_fix", 0)} · Needs input: {remediation.get("needs_input", 0)}</p></div>'
         f'<div class="experience-findings"><h3>Evidence findings</h3><ul>{items([item["code"] + " · " + item["message"] for item in summary.get("evidence_findings", [])], "Strict evidence checks passed")}</ul></div>'
+        '<div class="experience-findings"><h3>Fix one gap at a time</h3><ul>'
+        + "".join(
+            f'<li><strong>{html_lib.escape(str(item.get("id", "")))}</strong> · '
+            f'{html_lib.escape(str(item.get("problem", "")))}<br>'
+            f'<span class="muted">Impact: {html_lib.escape(str(item.get("impact", "")))}</span><br>'
+            f'<span class="muted">Options: {html_lib.escape(" / ".join(option.get("label", "") for option in item.get("options", [])))}</span>'
+            + (f'<br><code>Prompt ready: {html_lib.escape(item["visual_asset"].get("prompt_path", ""))}</code>' if item.get("visual_asset", {}).get("prompt_path") else "")
+            + '</li>'
+            for item in gap_plan
+        )
+        + ('<li class="muted">No unresolved gap cards</li>' if not gap_plan else '')
+        + '</ul><p class="muted">Visual gaps offer native generation, prompt-only, or skip. Other gaps offer auto-fix, revise, or keep.</p></div>'
         f'<p class="audit-note"><strong>Visual assets:</strong> {html_lib.escape(asset_text)}<br>Review the candidate and this change summary before applying or pushing it.</p>'
         '</aside>'
     )
@@ -1010,6 +1135,27 @@ Examples:
                     })
             if native_requests:
                 result["interaction"]["visual_actions"] = native_requests
+                result["interaction"]["visual_capability_probe"] = {
+                    "status": "pending",
+                    "required": True,
+                    "tool": "image_generation",
+                    "question": "当前 Agent 是否支持原生 image_generation？支持则直接生成并回填；不支持则展示 prompt_only 选项。",
+                    "fallback": "prompt_only",
+                }
+        if "visual_capability_probe" not in result["interaction"] and result.get("asset_manifest"):
+            result["interaction"]["visual_capability_probe"] = {
+                "status": "pending",
+                "required": True,
+                "tool": "image_generation",
+                "question": "当前 Agent 是否支持原生 image_generation？支持则直接生成并回填；不支持则展示 prompt_only 选项。",
+                "fallback": "prompt_only",
+            }
+        result["interaction"]["gap_plan"] = _gap_plan(
+            after,
+            after_experience,
+            result.get("asset_manifest"),
+            project,
+        )
         if not args.no_preview:
             preview_path = Path(args.preview_output).expanduser()
             if not preview_path.is_absolute():
@@ -1032,7 +1178,8 @@ Examples:
                 for asset in result["asset_manifest"].get("assets", []):
                     status = asset.get("status", "unknown")
                     statuses[status] = statuses.get(status, 0) + 1
-                summary["asset_statuses"] = statuses
+            summary["asset_statuses"] = statuses
+            summary["gap_plan"] = result["interaction"].get("gap_plan", [])
             preview_path.parent.mkdir(parents=True, exist_ok=True)
             if has_readme:
                 preview_html = _preview_html(
@@ -1194,6 +1341,14 @@ Examples:
                 print("Remaining reading-experience gaps:")
                 for finding in after_experience.findings:
                     print(f"- {finding.code} ({finding.section}): {finding.recommendation}")
+            if result["interaction"].get("gap_plan"):
+                print("Gap-by-gap repair choices:")
+                for item in result["interaction"]["gap_plan"]:
+                    choices = " / ".join(option["label"] for option in item["options"])
+                    print(f"- {item['id']} · {item['problem']} -> {choices}")
+                    visual_asset = item.get("visual_asset", {})
+                    if visual_asset.get("prompt"):
+                        print(f"  Prompt fallback: {visual_asset.get('prompt_path')}")
             if args.apply:
                 print("Original backup: README.md.bak")
             else:

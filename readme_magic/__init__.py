@@ -1,6 +1,6 @@
 ﻿"""ReadmeMagic - One spell, beautiful README"""
 
-__version__ = "2.1.1"
+__version__ = "2.2.0"
 __author__ = "GetIT-Sunday"
 __description__ = "Create professional, beautiful, high-converting README.md files"
 

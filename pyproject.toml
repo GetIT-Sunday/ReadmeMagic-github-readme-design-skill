@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "readme-magic"
-version = "2.1.1"
+version = "2.2.0"
 description = "Analyze and safely optimize GitHub README.md files from repository evidence"
 readme = "README.md"
 requires-python = ">=3.8"
