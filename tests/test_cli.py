@@ -89,6 +89,35 @@ demo = "demo:main"
             self.assertTrue(Path(result["preview"]["path"]).exists())
             self.assertFalse((project / "README.md").exists())
 
+    def test_bilingual_optimize_writes_paired_candidates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "pyproject.toml").write_text(
+                """[project]
+name = "demo"
+version = "0.1.0"
+description = "A small command line demo."
+
+[project.scripts]
+demo = "demo:main"
+""",
+                encoding="utf-8",
+            )
+            (project / "README.md").write_text("# Demo\n\nOriginal.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--bilingual", "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+            english = project / "README.optimized.md"
+            chinese = project / "README_ZH.generated.md"
+            self.assertTrue(english.exists())
+            self.assertTrue(chinese.exists())
+            self.assertIn('<a href="README_ZH.md">中文</a>', english.read_text(encoding="utf-8"))
+            self.assertIn('<a href="README.md">English</a>', chinese.read_text(encoding="utf-8"))
+            self.assertTrue(result["bilingual"]["enabled"])
+            self.assertEqual(result["interaction"]["bilingual"]["candidates"], [str(english.resolve()), str(chinese.resolve())])
+
     def test_preview_lifecycle_requires_open_event(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "demo"

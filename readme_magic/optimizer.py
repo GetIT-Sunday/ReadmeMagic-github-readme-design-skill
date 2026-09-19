@@ -133,15 +133,21 @@ def _nav(labels: Dict[str, str]) -> str:
     return '<p align="center">' + " · ".join(links) + "</p>"
 
 
-def _language_switch(existing: str) -> str:
-    """Preserve an existing English/Chinese switch from the source README."""
+def _language_switch(existing: str, lang: str = "en", bilingual: bool = False) -> str:
+    """Preserve or create an English/Chinese switch for paired README output."""
     header = existing.split("\n## ", 1)[0]
     match = re.search(
-        r'(?is)<p\s+align="center">\s*<strong>English</strong>\s*\|\s*'
-        r'<a\s+href="[^"]+">中文</a>\s*</p>',
+        r'(?is)<p\s+align=["\']center["\']>.*?'
+        r'(?:English.*?中文|中文.*?English).*?</p>',
         header,
     )
-    return match.group(0) if match else ""
+    if match:
+        return match.group(0)
+    if not bilingual:
+        return ""
+    if lang == "zh":
+        return '<p align="center"><a href="README.md">English</a> | <strong>中文</strong></p>'
+    return '<p align="center"><strong>English</strong> | <a href="README_ZH.md">中文</a></p>'
 
 
 def _section(label: str, emoji: str, body: str) -> str:
@@ -151,7 +157,13 @@ def _section(label: str, emoji: str, body: str) -> str:
     return f'<a name="{anchor}"></a>\n## {heading}\n\n{body}'
 
 
-def _hero(metadata: ProjectMetadata, existing: str, labels: Dict[str, str]) -> str:
+def _hero(
+    metadata: ProjectMetadata,
+    existing: str,
+    labels: Dict[str, str],
+    lang: str = "en",
+    bilingual: bool = False,
+) -> str:
     existing_header = existing.split("\n## ", 1)[0].strip()
     existing_header = re.sub(r"(?:\n\s*---\s*)+$", "", existing_header).strip()
     if _has_polished_header(existing):
@@ -164,7 +176,7 @@ def _hero(metadata: ProjectMetadata, existing: str, labels: Dict[str, str]) -> s
         f'  <img src="{html.escape(visual, quote=True)}" alt="{html.escape(metadata.name, quote=True)} preview" width="100%">\n'
         if visual else ""
     )
-    language_switch = _language_switch(existing)
+    language_switch = _language_switch(existing, lang=lang, bilingual=bilingual)
     language_line = f"  {language_switch}\n" if language_switch else ""
     return (
         '<div align="center">\n'
@@ -175,6 +187,20 @@ def _hero(metadata: ProjectMetadata, existing: str, labels: Dict[str, str]) -> s
         f'{language_line}'
         '</div>'
     )
+
+
+def _ensure_language_switch(content: str, lang: str, bilingual: bool) -> str:
+    """Ensure paired candidates expose a reciprocal language link in the hero."""
+    if not bilingual:
+        return content
+    header_end = content.find("\n## ")
+    if header_end < 0:
+        header_end = len(content)
+    header = content[:header_end]
+    if re.search(r"(?is)<p\s+align=[\"']center[\"']>.*?(?:English.*?中文|中文.*?English).*?</p>", header):
+        return content
+    switch = _language_switch("", lang=lang, bilingual=True)
+    return content[:header_end].rstrip() + "\n\n" + switch + content[header_end:]
 
 
 def _has_polished_header(existing: str) -> bool:
@@ -366,6 +392,7 @@ def _render_conservative_readme(
     is_zh: bool,
     asset_manifest: Optional[AssetManifest],
     runtime_demo: str,
+    bilingual: bool = False,
 ) -> str:
     """Surgically fill gaps in an already strong, project-owned README."""
     closing_visual = _closing_star_history(existing)
@@ -418,6 +445,7 @@ def render_optimized_readme(
     lang: str = "auto",
     asset_manifest: Optional[AssetManifest] = None,
     runtime_demo: str = "",
+    bilingual: bool = False,
 ) -> str:
     lang = _detect_language(existing, lang)
     closing_visual = _closing_star_history(existing)
@@ -453,8 +481,10 @@ def render_optimized_readme(
             # reading-experience defects merely because completeness is high.
             experience = analyze_experience(existing, metadata.repo)
             if not experience.findings:
-                return existing
-            return apply_safe_experience_fixes(existing, metadata.repo)
+                return _ensure_language_switch(existing, lang, bilingual)
+            return _ensure_language_switch(
+                apply_safe_experience_fixes(existing, metadata.repo), lang, bilingual
+            )
         if current_quality["core_quality_gate"]:
             conservative = _render_conservative_readme(
                 metadata,
@@ -463,8 +493,11 @@ def render_optimized_readme(
                 is_zh,
                 asset_manifest,
                 runtime_demo,
+                bilingual,
             )
-            return apply_safe_experience_fixes(conservative, metadata.repo)
+            return _ensure_language_switch(
+                apply_safe_experience_fixes(conservative, metadata.repo), lang, bilingual
+            )
 
     primary = _primary_visual(metadata, existing)
     features = _feature_cards(metadata, sections.get("features", ""), is_zh)
@@ -501,7 +534,7 @@ def render_optimized_readme(
         )
     preserved = _extract_unmanaged_sections(sections_source)
 
-    header_parts = [_hero(metadata, existing, labels)]
+    header_parts = [_hero(metadata, existing, labels, lang=lang, bilingual=bilingual)]
     if not _has_polished_header(existing):
         header_parts.append(_badges(metadata))
     header = "\n\n".join(part for part in header_parts if part)
@@ -539,7 +572,9 @@ def render_optimized_readme(
     if not primary:
         blocks.insert(1, "<!-- Add a real project banner, product screenshot, or architecture image to strengthen the first screen. -->")
     candidate = "\n\n---\n\n".join(block.strip() for block in blocks if block.strip()) + "\n"
-    return apply_safe_experience_fixes(candidate, metadata.repo)
+    return _ensure_language_switch(
+        apply_safe_experience_fixes(candidate, metadata.repo), lang, bilingual
+    )
 
 
 def optimize_project(
@@ -553,6 +588,8 @@ def optimize_project(
     image_model: Optional[str] = None,
     image_config_path: Optional[Path] = None,
     demo_command: Optional[str] = None,
+    readme_name: Optional[str] = None,
+    bilingual: bool = False,
 ) -> Tuple[Path, ReadmeReport, ReadmeReport, ProjectMetadata]:
     metadata = inspect_project(project_path)
     project = Path(metadata.path)
@@ -566,11 +603,20 @@ def optimize_project(
     if demo_command:
         transcript_path = capture_command(project, demo_command)
         runtime_demo = transcript_path.read_text(encoding="utf-8")
-    readme = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
-    has_readme = bool(metadata.readme_path and readme.exists())
+    readme = project / readme_name if readme_name else (
+        Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
+    )
+    has_readme = readme.is_file()
     existing = readme.read_text(encoding="utf-8") if readme.exists() else ""
     before = analyze_readme(existing, metadata.project_type)
-    candidate = render_optimized_readme(metadata, existing, lang, asset_manifest=manifest, runtime_demo=runtime_demo)
+    candidate = render_optimized_readme(
+        metadata,
+        existing,
+        lang,
+        asset_manifest=manifest,
+        runtime_demo=runtime_demo,
+        bilingual=bilingual,
+    )
     after = analyze_readme(candidate, metadata.project_type)
 
     if apply:
@@ -578,7 +624,12 @@ def optimize_project(
         if readme.exists():
             shutil.copy2(readme, readme.with_name(readme.name + ".bak"))
     else:
-        destination = output or project / ("README.optimized.md" if has_readme else "README.generated.md")
+        default_name = (
+            f"{readme.stem}.optimized{readme.suffix}"
+            if has_readme
+            else f"{readme.stem}.generated{readme.suffix}"
+        )
+        destination = output or project / default_name
         if not destination.is_absolute():
             destination = project / destination
     destination.parent.mkdir(parents=True, exist_ok=True)

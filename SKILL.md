@@ -1,7 +1,7 @@
 ---
 name: readme-magic
 metadata:
-  version: "2.1.0"
+  version: "2.1.1"
 description: Use ReadmeMagic as an executable README optimization agent. When a user asks in Chinese or English to optimize, beautify, redesign, audit, rewrite, or improve a README, or provides a GitHub repository URL, immediately resolve the target and run inspect → score → optimize → preview. Produce a candidate, visual comparison, evidence-backed findings, and a review choice; never stop at a prose plan or silently apply changes.
 ---
 
@@ -66,6 +66,22 @@ review status of `awaiting_user_review`.
 11. Present the candidate, the preview path, the change summary, and remaining findings. Never recommend blind commit or push. Replace `README.md` only after explicit user confirmation; use `--apply` for a backed-up replacement, then ask the user to review the diff before commit/push.
 
 For a user request that says “优化 README”, the completion point is the review gate with a visible candidate and preview. Do not claim completion when only a baseline score or a plan has been produced.
+
+### Bilingual README mode
+
+When the repository contains both `README.md` and `README_ZH.md`, treat them as a
+paired documentation surface. With `--lang auto`, `optimize` must generate both
+candidate files: `README.optimized.md` and `README_ZH.optimized.md`. When the
+Chinese file is missing, generate `README_ZH.generated.md` alongside the English
+candidate. Users can also request this explicitly with `--bilingual` or
+`--lang bilingual`.
+
+The English candidate must use `README_ZH.md` as its Chinese link and the Chinese
+candidate must use `README.md` as its English link. Keep title, product
+positioning, visual asset paths, commands, and important links synchronized while
+translating prose naturally; do not merely duplicate English text. The status card
+must include both candidate paths under `interaction.bilingual.candidates`, and
+the preview must make it clear that the run produced a synchronized pair.
 
 ## Authorization levels
 
@@ -160,6 +176,8 @@ readme-magic analyze --project-path .
 
 # Produce a safe candidate
 readme-magic optimize --project-path .
+readme-magic optimize --project-path . --bilingual
+readme-magic optimize --project-path . --lang bilingual
 
 # Force English or Chinese
 readme-magic optimize --project-path . --lang en

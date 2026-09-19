@@ -54,7 +54,7 @@ must continue to render their Markdown/HTML faithfully.
 ```json
 {
   "module": "readme-magic",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "stage": "review",
   "status": "awaiting_user_review",
   "target": "owner/repo@branch",
@@ -74,6 +74,11 @@ must continue to render their Markdown/HTML faithfully.
   "preview_status": "opened",
   "host_action": null,
   "visual_actions": [],
+  "bilingual": {
+    "enabled": true,
+    "candidates": ["/absolute/path/README.optimized.md", "/absolute/path/README_ZH.optimized.md"],
+    "language_switches": {"english": "README_ZH.md", "chinese": "README.md"}
+  },
   "next_actions": ["apply", "revise", "keep_original"]
 }
 ```

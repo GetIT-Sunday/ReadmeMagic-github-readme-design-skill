@@ -273,6 +273,17 @@ Please contribute.
             content = render_optimized_readme(inspect_project(project), existing, lang="en")
             self.assertIn('<a href="README_ZH.md">中文</a>', content)
 
+    def test_bilingual_render_adds_reciprocal_language_switches(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            metadata = inspect_project(project)
+            english = render_optimized_readme(metadata, lang="en", bilingual=True)
+            chinese = render_optimized_readme(metadata, lang="zh", bilingual=True)
+            self.assertIn('<a href="README_ZH.md">中文</a>', english)
+            self.assertIn('<a href="README.md">English</a>', chinese)
+            self.assertIn("## ✨ Highlights", english)
+            self.assertIn("## ✨ 核心亮点", chinese)
+
     def test_preserves_unmanaged_sections_and_adds_stable_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)

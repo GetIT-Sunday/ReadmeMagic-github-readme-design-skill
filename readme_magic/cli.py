@@ -677,8 +677,10 @@ Examples:
                           help="Path to project (default: current directory)")
     optimize.add_argument("--output", "-o",
                           help="Candidate path (default: README.optimized.md, or README.generated.md when missing)")
-    optimize.add_argument("--lang", "-l", default="auto", choices=["auto", "en", "zh"],
-                          help="Output language; auto preserves the current README language")
+    optimize.add_argument("--lang", "-l", default="auto", choices=["auto", "en", "zh", "bilingual"],
+                          help="Output language; auto preserves the current README language; bilingual writes both files")
+    optimize.add_argument("--bilingual", action="store_true",
+                          help="Generate synchronized English and Chinese candidate READMEs")
     optimize.add_argument(
         "--apply",
         action="store_true",
@@ -815,14 +817,51 @@ Examples:
     # -- handle optimize ------------------------------------------------------
     elif args.command == "optimize":
         output = Path(args.output).expanduser() if args.output else None
+        project_path = Path(args.project_path).expanduser().resolve()
+        bilingual_requested = bool(
+            args.bilingual
+            or args.lang == "bilingual"
+            or (args.lang == "auto" and (project_path / "README_ZH.md").is_file())
+        )
+        zh_source_exists = (project_path / "README_ZH.md").is_file()
+        if bilingual_requested and output:
+            parser.error("--output cannot be combined with bilingual output; use the default paired candidate paths")
+        zh_destination = None
+        zh_before = zh_after = zh_metadata = None
+        if bilingual_requested:
+            zh_source = project_path / "README_ZH.md"
+            zh_destination_path = (
+                zh_source
+                if args.apply
+                else project_path / ("README_ZH.optimized.md" if zh_source.is_file() else "README_ZH.generated.md")
+            )
+            try:
+                zh_destination, zh_before, zh_after, zh_metadata = optimize_project(
+                    project_path,
+                    output=zh_destination_path,
+                    apply=args.apply,
+                    lang="zh",
+                    bilingual=True,
+                    image_mode=args.image_mode,
+                    image_provider=args.image_provider,
+                    image_model=args.image_model,
+                    image_config_path=Path(args.image_config).expanduser() if args.image_config else None,
+                    demo_command=args.demo_command,
+                    readme_name="README_ZH.md",
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
         try:
             destination, before, after, metadata = optimize_project(
-                Path(args.project_path), output=output, apply=args.apply, lang=args.lang,
+                project_path, output=output, apply=args.apply,
+                lang="en" if bilingual_requested else args.lang,
+                bilingual=bilingual_requested,
                 image_mode=args.image_mode,
                 image_provider=args.image_provider,
                 image_model=args.image_model,
                 image_config_path=Path(args.image_config).expanduser() if args.image_config else None,
                 demo_command=args.demo_command,
+                readme_name="README.md" if bilingual_requested else None,
             )
         except ValueError as exc:
             parser.error(str(exc))
@@ -838,6 +877,21 @@ Examples:
             "before": before.to_dict() if has_readme else None,
             "after": after.to_dict(),
         }
+        if bilingual_requested and zh_destination is not None:
+            result["bilingual"] = {
+                "enabled": True,
+                "mode": "paired_candidates",
+                "english": {
+                    "candidate": str(destination.resolve()),
+                    "before": before.to_dict() if has_readme else None,
+                    "after": after.to_dict(),
+                },
+                "chinese": {
+                    "candidate": str(zh_destination.resolve()),
+                    "before": zh_before.to_dict() if zh_source_exists else None,
+                    "after": zh_after.to_dict(),
+                },
+            }
         project = Path(metadata.path)
         workflow_state = create_state(project, "apply" if args.apply else "review")
         workflow_state.preview_status = "not_generated"
@@ -849,6 +903,8 @@ Examples:
         workflow_state.artifacts = {
             "candidate": str(destination.resolve()),
         }
+        if bilingual_requested and zh_destination is not None:
+            workflow_state.artifacts["candidate_zh"] = str(zh_destination.resolve())
         if not args.no_preview:
             workflow_state.artifacts["preview"] = (
                 str((project / args.preview_output).resolve())
@@ -926,6 +982,15 @@ Examples:
             "preview": None,
             "next_actions": ["apply", "revise", "keep_original"] if not args.apply else ["review_application", "commit"],
         }
+        if bilingual_requested and zh_destination is not None:
+            result["interaction"]["bilingual"] = {
+                "enabled": True,
+                "candidates": [str(destination.resolve()), str(zh_destination.resolve())],
+                "language_switches": {
+                    "english": "README_ZH.md",
+                    "chinese": "README.md",
+                },
+            }
         result["publish_ready"] = bool(
             after.to_dict()["core_quality_gate"] and after_experience.score >= 80
             and not any(finding.severity == "high" for finding in after.findings + after_experience.findings)
@@ -978,6 +1043,36 @@ Examples:
             preview_path.write_text(preview_html, encoding="utf-8")
             result["preview"] = {"path": str(preview_path.resolve()), "summary": summary}
             result["interaction"]["preview"] = str(preview_path.resolve())
+            if bilingual_requested and zh_destination is not None:
+                zh_preview_path = preview_path.with_name(f"{preview_path.stem}.zh{preview_path.suffix}")
+                zh_before_path = project / "README_ZH.md.bak" if args.apply else project / "README_ZH.md"
+                zh_before_content = zh_before_path.read_text(encoding="utf-8") if zh_before_path.exists() else ""
+                zh_summary = _preview_summary(
+                    zh_before_content,
+                    zh_destination.read_text(encoding="utf-8"),
+                    zh_before.score if zh_source_exists else None,
+                    zh_after.score,
+                    analyze_experience(zh_before_content, metadata.repo),
+                    analyze_experience(zh_destination.read_text(encoding="utf-8"), metadata.repo),
+                    zh_after,
+                )
+                zh_preview_path.write_text(
+                    _preview_html(
+                        zh_before_content,
+                        zh_before_path.name if zh_before_content else "No README_ZH.md",
+                        zh_destination.read_text(encoding="utf-8"),
+                        zh_destination.name,
+                        zh_summary,
+                    ) if zh_before_content else _preview_html(
+                        zh_destination.read_text(encoding="utf-8"), zh_destination.name, summary=zh_summary
+                    ),
+                    encoding="utf-8",
+                )
+                result["preview"]["bilingual"] = {"chinese": str(zh_preview_path.resolve())}
+                result["interaction"]["bilingual"]["previews"] = {
+                    "english": str(preview_path.resolve()),
+                    "chinese": str(zh_preview_path.resolve()),
+                }
             workflow_state.preview_status = "generated_pending_open"
 
         preview_review_status = (
@@ -1028,8 +1123,12 @@ Examples:
             "strict_evidence_gate": after.to_dict()["strict_evidence_gate"],
         }
         workflow_state.artifacts["candidate"] = str(destination.resolve())
+        if bilingual_requested and zh_destination is not None:
+            workflow_state.artifacts["candidate_zh"] = str(zh_destination.resolve())
         if result.get("preview"):
             workflow_state.artifacts["preview"] = result["preview"]["path"]
+            if bilingual_requested and result["preview"].get("bilingual"):
+                workflow_state.artifacts["preview_zh"] = result["preview"]["bilingual"]["chinese"]
         workflow_state.findings = [
             {
                 "code": finding.code,
@@ -1076,6 +1175,10 @@ Examples:
             print(f"Publish readiness: {'Ready for review' if result['publish_ready'] else 'Not ready'}")
             if result.get("preview"):
                 print(f"Visual review -> {result['preview']['path']}")
+            if result.get("bilingual"):
+                print(f"Chinese candidate -> {result['bilingual']['chinese']['candidate']}")
+                if result.get("preview", {}).get("bilingual"):
+                    print(f"Chinese visual review -> {result['preview']['bilingual']['chinese']}")
             print(f"Interaction card -> {interaction_path.resolve()}")
             if manifest_path.exists():
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

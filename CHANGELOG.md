@@ -31,6 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version so stale Skill checkouts are easy to identify.
 - Versioned interaction protocol metadata for Agent hosts and preview artifacts.
 
+## [2.1.1] - 2026-09-19
+
+### Added
+
+- Paired bilingual optimization for `README.md` and `README_ZH.md`.
+- `--bilingual` and `--lang bilingual` modes with reciprocal language switches,
+  synchronized candidate paths, and bilingual interaction-card metadata.
+- Automatic bilingual candidate generation when a repository already contains
+  both English and Chinese README files.
+
 ## [2.0.0] - 2026-07-16
 
 ### Added
