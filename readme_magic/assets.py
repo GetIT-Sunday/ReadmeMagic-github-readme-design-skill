@@ -2,8 +2,10 @@
 
 The planner is deliberately useful without an image API: ``prompt_only``
 produces reproducible prompts and an asset manifest that a user can complete
-with any web image tool.  API generation is opt-in and never replaces runtime
-evidence such as screenshots or CLI recordings.
+with any web image tool. ``native`` is a host-agent mode: the Python CLI emits
+repository-grounded generation requests, while the host's native
+``image_generation`` tool creates and saves the image. API generation is opt-in
+and never replaces runtime evidence such as screenshots or CLI recordings.
 """
 
 from dataclasses import asdict, dataclass, field
@@ -19,7 +21,7 @@ import urllib.request
 from .analyzer import ProjectMetadata
 
 
-IMAGE_MODES = ("api", "prompt_only", "disabled")
+IMAGE_MODES = ("native", "api", "prompt_only", "disabled")
 DEFAULT_CONFIG = {
     "mode": "prompt_only",
     "provider": "openai",
@@ -284,6 +286,17 @@ def materialize_assets(
     if write_prompts and config.mode == "prompt_only":
         prompt_dir.mkdir(parents=True, exist_ok=True)
     for asset in manifest.assets:
+        if config.mode == "native":
+            # Native generation is executed by the host Agent through its
+            # image_generation tool. The CLI records a ready request but never
+            # pretends that an image exists before the host saves it.
+            destination = project / asset.filename
+            asset.status = "native_required" if not destination.is_file() else "available"
+            asset.path = asset.filename
+            if write_prompts:
+                prompt_dir.mkdir(parents=True, exist_ok=True)
+                (prompt_dir / f"{asset.key}.prompt.md").write_text(asset.prompt + "\n", encoding="utf-8")
+            continue
         if config.mode == "disabled":
             asset.status = "disabled"
             continue

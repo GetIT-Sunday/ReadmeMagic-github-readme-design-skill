@@ -17,7 +17,7 @@ from .assets import DEFAULT_CONFIG, IMAGE_MODES, load_image_config
 from .experience import analyze_experience, audit_repository_consistency
 from .optimizer import optimize_project
 from .quality import analyze_readme
-from .workflow import STAGES, create_state, save_state
+from .workflow import STAGES, create_state, mark_preview_opened, save_state
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -43,13 +43,17 @@ TEMPLATE_DESCRIPTIONS = {
 
 
 def _print_report(report, experience=None) -> None:
-    print(f"Content & Evidence: {report.score}/{report.max_score}")
+    report_dict = report.to_dict()
+    print(f"Core Documentation: {report_dict['core_score']}/{report_dict['core_max_score']}")
+    print(f"Showcase Enhancement: {report_dict['presentation_score']}/{report_dict['presentation_max_score']}")
+    print(f"Overall README score: {report.score}/{report.max_score}")
     if experience is not None:
         print(f"Reading Experience: {experience.score}/{experience.max_score}")
-        ready = report.score >= 85 and experience.score >= 80 and not any(
+        ready = report_dict["core_quality_gate"] and experience.score >= 80 and not any(
             finding.severity == "high" for finding in report.findings + experience.findings
         )
         print(f"Publish readiness: {'Ready for review' if ready else 'Not ready'}")
+        print(f"Quality tier: {report_dict['tier']} | Showcase completeness: {'PASS' if report_dict['strict_evidence_gate'] else 'OPTIONAL GAPS'}")
     print("Dimensions: " + " | ".join(
         f"{name} {value}" for name, value in report.dimensions.items()
     ))
@@ -70,6 +74,7 @@ def _print_inspection(metadata) -> None:
     print(f"Project: {metadata.name}")
     print(f"Type: {metadata.project_type} (confidence {metadata.type_confidence:.0%})")
     print(f"Language: {metadata.language}")
+    print(f"README: {'present' if metadata.readme_path else 'missing (first-README flow)'}")
     if metadata.type_reasons:
         print("Why: " + "; ".join(metadata.type_reasons))
     labels = {
@@ -113,6 +118,8 @@ def _interaction_events(
     candidate: str,
     preview: str = "",
     actions=None,
+    review_status: str = "awaiting_user_review",
+    workflow_kind: str = "optimize",
 ) -> list:
     """Return a compact event stream that hosts can render as tool-like progress."""
     events = [
@@ -120,14 +127,16 @@ def _interaction_events(
         {"stage": "inspect", "status": "completed", "label": "Collected repository evidence"},
         {"stage": "score", "status": "completed", "label": "Scored content and reading experience"},
         {"stage": "plan", "status": "completed", "label": "Classified safe fixes and review items"},
-        {"stage": "optimize", "status": "completed", "label": "Wrote candidate README", "artifact": candidate},
+        {"stage": "optimize", "status": "completed",
+         "label": "Wrote first README candidate" if workflow_kind == "create" else "Wrote candidate README",
+         "artifact": candidate},
     ]
     if preview:
         events.append({"stage": "preview", "status": "completed", "label": "Rendered before/after preview", "artifact": preview})
     events.append({
         "stage": "review",
-        "status": "awaiting_user_review",
-        "label": "Waiting for user review",
+        "status": review_status,
+        "label": "Waiting for preview to be opened" if review_status == "preview_pending_open" else "Waiting for user review",
         "target": target,
         "execution_mode": execution_mode,
         "actions": actions or ["apply", "revise", "keep_original"],
@@ -399,6 +408,7 @@ def _preview_summary(
     after_score=None,
     before_experience=None,
     after_experience=None,
+    after_report=None,
 ) -> dict:
     before_titles = _heading_titles(before)
     after_titles = _heading_titles(after)
@@ -433,6 +443,15 @@ def _preview_summary(
         summary["before_score"] = before_score
     if after_score is not None:
         summary["after_score"] = after_score
+    if after_report is not None:
+        report = after_report.to_dict()
+        summary["after_quality_tier"] = report["tier"]
+        summary["strict_evidence_gate"] = report["strict_evidence_gate"]
+        summary["evidence_findings"] = [
+            {"code": finding.code, "severity": finding.severity, "message": finding.message}
+            for finding in after_report.findings
+            if finding.code in {"visual_story", "showcase_evidence", "architecture_quality", "dynamic_demo"}
+        ]
     if before_experience is not None:
         summary["before_experience_score"] = before_experience.score
     if after_experience is not None:
@@ -448,8 +467,13 @@ def _preview_summary(
             for finding in after_experience.findings
         ]
         summary["remediation_counts"] = after_experience.to_dict()["remediation_counts"]
+        after_report_dict = after_report.to_dict() if after_report is not None else {}
+        summary["core_score"] = after_report_dict.get("core_score", 0)
+        summary["core_max_score"] = after_report_dict.get("core_max_score", 70)
+        summary["presentation_score"] = after_report_dict.get("presentation_score", 0)
+        summary["presentation_max_score"] = after_report_dict.get("presentation_max_score", 30)
         summary["publish_ready"] = bool(
-            (after_score or 0) >= 85
+            after_report_dict.get("core_quality_gate", False)
             and after_experience.score >= 80
             and not any(finding.severity == "high" for finding in after_experience.findings)
         )
@@ -459,11 +483,12 @@ def _preview_summary(
 def _summary_panel(summary: dict) -> str:
     if not summary:
         return ""
-    before_score = summary.get("before_score", "-")
+    baseline_available = summary.get("baseline_available", True)
+    before_score = summary.get("before_score", "-") if baseline_available else "—"
     after_score = summary.get("after_score", "-")
-    before_experience = summary.get("before_experience_score", "-")
+    before_experience = summary.get("before_experience_score", "-") if baseline_available else "—"
     after_experience = summary.get("after_experience_score", "-")
-    similarity = "{:.0%}".format(summary.get("similarity", 0))
+    similarity = "{:.0%}".format(summary.get("similarity", 0)) if baseline_available else "—"
 
     def items(values, empty="None"):
         return "".join(f"<li>{html_lib.escape(value)}</li>" for value in values) or f"<li class=\"muted\">{empty}</li>"
@@ -471,7 +496,10 @@ def _summary_panel(summary: dict) -> str:
     asset_statuses = summary.get("asset_statuses", {})
     asset_text = ", ".join(f"{key}: {value}" for key, value in sorted(asset_statuses.items())) or "Not generated"
     readiness = "Ready for review" if summary.get("publish_ready") else "Not ready"
+    tier = summary.get("after_quality_tier", "-")
+    evidence_gate = "PASS" if summary.get("strict_evidence_gate") else "OPTIONAL GAPS"
     review_status = "AWAITING USER REVIEW"
+    workflow_label = "OPTIMIZE EXISTING README" if baseline_available else "CREATE FIRST README"
     remediation = summary.get("remediation_counts", {})
     experience_items = "".join(
         f'<li><code>{html_lib.escape(item["code"])}</code> · {html_lib.escape(item["section"])} · '
@@ -494,19 +522,23 @@ def _summary_panel(summary: dict) -> str:
     return (
         '<aside class="audit-panel">'
         '<div class="review-header">'
-        '<div class="review-eyebrow">README REVIEW · READMEMAGIC</div>'
+        f'<div class="review-eyebrow">README REVIEW · READMEMAGIC · {workflow_label}</div>'
         '<h1>Make the project easier to understand.</h1>'
-        '<p>Evidence-backed before/after review for a more useful GitHub landing page.</p>'
+        f'<p>{"Evidence-backed before/after review for a more useful GitHub landing page." if baseline_available else "Evidence-backed first README draft for a more useful GitHub landing page."}</p>'
         '</div>'
-        f'<div class="review-banner">{review_status}<span>Choose apply, revise, or keep the original after inspecting both columns.</span></div>'
+        f'<div class="review-banner">{review_status}<span>{"Choose apply, revise, or keep the original after inspecting both columns." if baseline_available else "Review the generated candidate, then choose apply, revise, or keep the project without a README."}</span></div>'
         '<h2>What changed</h2>'
         '<div class="metrics">'
-        f'<div><strong>{html_lib.escape(str(before_score))}</strong><span>Original content &amp; evidence</span></div>'
+        f'<div><strong>{html_lib.escape(str(before_score))}</strong><span>{"Original content &amp; evidence" if baseline_available else "No baseline README"}</span></div>'
         f'<div><strong>{html_lib.escape(str(after_score))}</strong><span>Candidate content &amp; evidence</span></div>'
-        f'<div><strong>{html_lib.escape(str(before_experience))}</strong><span>Original reading experience</span></div>'
+        f'<div><strong>{html_lib.escape(str(summary.get("core_score", "-")))}/{html_lib.escape(str(summary.get("core_max_score", 70)))}</strong><span>Core documentation</span></div>'
+        f'<div><strong>{html_lib.escape(str(summary.get("presentation_score", "-")))}/{html_lib.escape(str(summary.get("presentation_max_score", 30)))}</strong><span>Showcase enhancement</span></div>'
+        f'<div><strong>{html_lib.escape(str(before_experience))}</strong><span>{"Original reading experience" if baseline_available else "No baseline experience"}</span></div>'
         f'<div><strong>{html_lib.escape(str(after_experience))}</strong><span>Candidate reading experience</span></div>'
         f'<div><strong>{readiness}</strong><span>Publish readiness</span></div>'
-        f'<div><strong>{html_lib.escape(str(summary.get("before_lines", 0)))}</strong><span>Original lines</span></div>'
+        f'<div><strong>{html_lib.escape(str(tier))}</strong><span>Quality tier</span></div>'
+        f'<div><strong>{evidence_gate}</strong><span>Showcase completeness</span></div>'
+        f'<div><strong>{html_lib.escape(str(summary.get("before_lines", 0) if baseline_available else "—"))}</strong><span>{"Original lines" if baseline_available else "Baseline lines"}</span></div>'
         f'<div><strong>{html_lib.escape(str(summary.get("after_lines", 0)))}</strong><span>Candidate lines</span></div>'
         f'<div><strong>{similarity}</strong><span>Text similarity</span></div>'
         '</div>'
@@ -526,6 +558,7 @@ def _summary_panel(summary: dict) -> str:
         '</div>'
         f'<div class="experience-findings"><h3>Reading-experience findings</h3><ul>{experience_items}</ul>'
         f'<p class="muted">Safe fixes: {remediation.get("safe_fix", 0)} · Suggested fixes: {remediation.get("suggested_fix", 0)} · Needs input: {remediation.get("needs_input", 0)}</p></div>'
+        f'<div class="experience-findings"><h3>Evidence findings</h3><ul>{items([item["code"] + " · " + item["message"] for item in summary.get("evidence_findings", [])], "Strict evidence checks passed")}</ul></div>'
         f'<p class="audit-note"><strong>Visual assets:</strong> {html_lib.escape(asset_text)}<br>Review the candidate and this change summary before applying or pushing it.</p>'
         '</aside>'
     )
@@ -553,7 +586,8 @@ def _preview_html(
             '</div></main>'
         )
     else:
-        body = f'<main class="single-wrap">{panel}<section class="github-markdown"><div class="file-label">{html_lib.escape(primary_name)}</div>{primary_html}</section></main>'
+        label = "Generated candidate · " + primary_name if (summary or {}).get("workflow_kind") == "create" else primary_name
+        body = f'<main class="single-wrap">{panel}<section class="github-markdown"><div class="file-label">{html_lib.escape(label)}</div>{primary_html}</section></main>'
     return """<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ReadmeMagic GitHub README preview</title>
@@ -641,7 +675,7 @@ Examples:
     optimize.add_argument("--project-path", "-p", default=".",
                           help="Path to project (default: current directory)")
     optimize.add_argument("--output", "-o",
-                          help="Candidate path (default: <project>/README.optimized.md)")
+                          help="Candidate path (default: README.optimized.md, or README.generated.md when missing)")
     optimize.add_argument("--lang", "-l", default="auto", choices=["auto", "en", "zh"],
                           help="Output language; auto preserves the current README language")
     optimize.add_argument(
@@ -650,7 +684,7 @@ Examples:
         help="Replace README.md after saving README.md.bak (default: candidate only)",
     )
     optimize.add_argument("--image-mode", choices=IMAGE_MODES, default=None,
-                          help="Visual asset mode: api, prompt_only, or disabled")
+                          help="Visual asset mode: native, api, prompt_only, or disabled")
     optimize.add_argument("--image-provider", default=None,
                           help="Image provider name (default: configured provider)")
     optimize.add_argument("--image-model", default=None,
@@ -671,6 +705,7 @@ Examples:
     preview.add_argument("--input", "-i", default="README.md", help="Input README file (default: README.md)")
     preview.add_argument("--output", "-o", default="preview.html", help="Output HTML file (default: preview.html)")
     preview.add_argument("--compare", help="Optional second README to show beside the input")
+    preview.add_argument("--opened", action="store_true", help="Mark the generated preview as opened by the host UI")
 
     # -- image-config --------------------------------------------------------
     image_config = subparsers.add_parser("image-config", help="Inspect or initialize image generation settings")
@@ -707,17 +742,26 @@ Examples:
     # -- handle check-install -----------------------------------------------
     elif args.command == "check-install":
         import importlib.util
+        import shutil
+        import platform
         package_ok = importlib.util.find_spec("readme_magic") is not None
         markdown_ok = importlib.util.find_spec("markdown_it") is not None
+        module_entry_ok = importlib.util.find_spec("readme_magic.__main__") is not None
+        executable = shutil.which("readme-magic")
         print("ReadmeMagic installation")
         print(f"- Python: {sys.executable}")
+        print(f"- Python version: {platform.python_version()}")
         print(f"- Package import: {'ok' if package_ok else 'missing'}")
         print(f"- markdown-it-py: {'ok' if markdown_ok else 'missing'}")
-        if not package_ok or not markdown_ok:
+        print(f"- Module entrypoint: {'ok' if module_entry_ok else 'missing'}")
+        print(f"- Shell entrypoint: {executable or 'not on PATH (module entrypoint remains available)'}")
+        if not package_ok or not markdown_ok or not module_entry_ok:
             print("Install from the repository with: python3 -m pip install -e .")
             print("Or run: ./scripts/install.sh")
             raise SystemExit(1)
         print("- CLI: ready")
+        print("- Preview renderer: ready")
+        print("- Image generation: optional (native, API, or prompt-only)")
 
     elif args.command == "workflow":
         state = create_state(Path(args.project_path), args.stage)
@@ -751,13 +795,20 @@ Examples:
                 )
             experience.score = sum(experience.dimensions.values())
         if args.json:
-            print(json.dumps({"project": metadata.to_dict(), "report": report.to_dict(),
-                              "experience": experience.to_dict()},
+            print(json.dumps({"project": metadata.to_dict(),
+                              "readme_present": bool(metadata.readme_path),
+                              "baseline_available": bool(metadata.readme_path),
+                              "report": report.to_dict() if metadata.readme_path else None,
+                              "experience": experience.to_dict() if metadata.readme_path else None},
                              ensure_ascii=False, indent=2))
         else:
             print(f"Project: {metadata.name}")
             print(f"Detected: {metadata.language} | template: {metadata.template}")
-            _print_report(report, experience)
+            if not metadata.readme_path:
+                print("README: missing")
+                print("No baseline score is available. Run `readme-magic optimize` to create a reviewable README candidate.")
+            else:
+                _print_report(report, experience)
 
     # -- handle optimize ------------------------------------------------------
     elif args.command == "optimize":
@@ -773,15 +824,20 @@ Examples:
             )
         except ValueError as exc:
             parser.error(str(exc))
+        has_readme = bool(metadata.readme_path and Path(metadata.readme_path).is_file())
+        workflow_kind = "optimize" if has_readme else "create"
         result = {
             "project": metadata.to_dict(),
             "output": str(destination.resolve()),
             "applied": args.apply,
-            "before": before.to_dict(),
+            "workflow_kind": workflow_kind,
+            "baseline_available": has_readme,
+            "before": before.to_dict() if has_readme else None,
             "after": after.to_dict(),
         }
         project = Path(metadata.path)
         workflow_state = create_state(project, "apply" if args.apply else "review")
+        workflow_state.preview_status = "not_generated"
         branch = _git_ref(project)
         workflow_state.target = f"{metadata.repo}@{branch}" if metadata.repo and branch else (metadata.repo or metadata.name)
         workflow_state.completed_stages = ["discover", "inspect", "score", "plan", "optimize"]
@@ -796,15 +852,23 @@ Examples:
                 if not Path(args.preview_output).is_absolute()
                 else str(Path(args.preview_output).resolve())
             )
-        workflow_state.scores = {"content_before": before.score, "content_after": after.score}
+        workflow_state.scores = {
+            "baseline_available": has_readme,
+            "content_before": before.score if has_readme else None,
+            "content_after": after.score,
+            "core_documentation_after": after.to_dict()["core_score"],
+            "showcase_enhancement_after": after.to_dict()["presentation_score"],
+        }
         workflow_state_path = save_state(workflow_state, project)
         result["workflow_state"] = str(workflow_state_path.resolve())
-        if args.apply and (project / "README.md.bak").exists():
+        if not has_readme:
+            before_source = None
+        elif args.apply and (project / "README.md.bak").exists():
             before_source = project / "README.md.bak"
         else:
             before_source = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
         before_experience = analyze_experience(
-            before_source.read_text(encoding="utf-8") if before_source.exists() else "", metadata.repo
+            before_source.read_text(encoding="utf-8") if before_source and before_source.exists() else "", metadata.repo
         )
         after_experience = analyze_experience(destination.read_text(encoding="utf-8"), metadata.repo)
         consistency_findings = audit_repository_consistency(project, metadata)
@@ -838,21 +902,45 @@ Examples:
             "target": workflow_state.target,
             "execution_mode": workflow_state.execution_mode,
             "scores": {
+                "overall": after.score,
                 "content_evidence": after.score,
+                "core_documentation": after.to_dict()["core_score"],
+                "showcase_enhancement": after.to_dict()["presentation_score"],
                 "reading_experience": after_experience.score,
             },
+            "workflow_kind": workflow_kind,
+            "baseline_available": has_readme,
+            "message": (
+                "README.md found; candidate optimization is ready for review."
+                if has_readme
+                else "README.md not found; a first README candidate is ready for review."
+            ),
             "findings": finding_counts,
+            "quality_tier": after.to_dict()["tier"],
+            "strict_evidence_gate": after.to_dict()["strict_evidence_gate"],
             "candidate": str(destination.resolve()),
             "preview": None,
             "next_actions": ["apply", "revise", "keep_original"] if not args.apply else ["review_application", "commit"],
         }
         result["publish_ready"] = bool(
-            after.score >= 85 and after_experience.score >= 80
+            after.to_dict()["core_quality_gate"] and after_experience.score >= 80
             and not any(finding.severity == "high" for finding in after.findings + after_experience.findings)
         )
         manifest_path = Path(metadata.path) / "artifacts" / "asset-manifest.json"
         if manifest_path.exists():
             result["asset_manifest"] = json.loads(manifest_path.read_text(encoding="utf-8"))
+            native_requests = []
+            for asset in result["asset_manifest"].get("assets", []):
+                if asset.get("status") == "native_required":
+                    native_requests.append({
+                        "type": "generate_image",
+                        "tool": "image_generation",
+                        "asset": asset.get("key"),
+                        "prompt": asset.get("prompt", ""),
+                        "save_to": str((project / asset.get("filename", "")).resolve()),
+                    })
+            if native_requests:
+                result["interaction"]["visual_actions"] = native_requests
         if not args.no_preview:
             preview_path = Path(args.preview_output).expanduser()
             if not preview_path.is_absolute():
@@ -864,9 +952,11 @@ Examples:
             before_content = before_path.read_text(encoding="utf-8") if before_path.exists() else ""
             after_content = destination.read_text(encoding="utf-8")
             summary = _preview_summary(
-                before_content, after_content, before.score, after.score,
-                before_experience, after_experience,
+                before_content, after_content, before.score if has_readme else None, after.score,
+                before_experience, after_experience, after,
             )
+            summary["workflow_kind"] = workflow_kind
+            summary["baseline_available"] = has_readme
             summary["publish_ready"] = result["publish_ready"]
             if manifest_path.exists():
                 statuses = {}
@@ -875,12 +965,38 @@ Examples:
                     statuses[status] = statuses.get(status, 0) + 1
                 summary["asset_statuses"] = statuses
             preview_path.parent.mkdir(parents=True, exist_ok=True)
-            preview_path.write_text(
-                _preview_html(before_content, before_path.name, after_content, destination.name, summary),
-                encoding="utf-8",
-            )
+            if has_readme:
+                preview_html = _preview_html(
+                    before_content, before_path.name, after_content, destination.name, summary
+                )
+            else:
+                preview_html = _preview_html(after_content, destination.name, summary=summary)
+            preview_path.write_text(preview_html, encoding="utf-8")
             result["preview"] = {"path": str(preview_path.resolve()), "summary": summary}
             result["interaction"]["preview"] = str(preview_path.resolve())
+            workflow_state.preview_status = "generated_pending_open"
+
+        preview_review_status = (
+            "preview_pending_open"
+            if result.get("preview") and not args.apply
+            else result["interaction"]["status"]
+        )
+        result["interaction"]["preview_status"] = (
+            "generated_pending_open" if preview_review_status == "preview_pending_open" else workflow_state.preview_status
+        )
+        if preview_review_status == "preview_pending_open":
+            result["interaction"]["status"] = "preview_pending_open"
+            result["interaction"]["next_actions"] = ["open_preview"]
+            result["interaction"]["host_action"] = {
+                "type": "open_file",
+                "tool": "mcp__codex_app__open_in_codex",
+                "path": result["interaction"]["preview"],
+                "then": (
+                    "readme-magic preview --project-path <project> "
+                    + (f"--input {before_path.name} --compare {destination.name} " if has_readme else f"--input {destination.name} ")
+                    + f"--output {Path(result['interaction']['preview']).name} --opened"
+                ),
+            }
 
         result["interaction"]["events"] = _interaction_events(
             result["interaction"]["target"],
@@ -888,6 +1004,8 @@ Examples:
             result["interaction"]["candidate"],
             result["interaction"].get("preview") or "",
             result["interaction"]["next_actions"],
+            preview_review_status,
+            workflow_kind,
         )
         # Persist the same interaction contract that is returned to the Agent.
         # This makes a run inspectable even when the caller does not request JSON.
@@ -896,8 +1014,14 @@ Examples:
         workflow_state.scores = {
             "content_before": before.score,
             "content_after": after.score,
+            "core_documentation_before": before.to_dict()["core_score"],
+            "core_documentation_after": after.to_dict()["core_score"],
+            "showcase_enhancement_before": before.to_dict()["presentation_score"],
+            "showcase_enhancement_after": after.to_dict()["presentation_score"],
             "reading_experience_before": before_experience.score,
             "reading_experience_after": after_experience.score,
+            "quality_tier": after.to_dict()["tier"],
+            "strict_evidence_gate": after.to_dict()["strict_evidence_gate"],
         }
         workflow_state.artifacts["candidate"] = str(destination.resolve())
         if result.get("preview"):
@@ -926,12 +1050,24 @@ Examples:
         else:
             print(f"Optimized README -> {destination.resolve()}")
             for event in result["interaction"]["events"]:
-                marker = "⏸️" if event["status"] == "awaiting_user_review" else "✓"
+                marker = "⏸️" if event["status"] in ("awaiting_user_review", "preview_pending_open") else "✓"
                 print(f"{marker} ReadmeMagic · {event['stage']}: {event['label']}")
-            print("ReadmeMagic status: awaiting_user_review" if not args.apply else "ReadmeMagic status: applied_pending_commit_review")
+            print(f"ReadmeMagic status: {result['interaction']['status']}")
+            print(
+                "Workflow: " + (
+                    "optimize existing README" if result["workflow_kind"] == "optimize"
+                    else "create first README"
+                )
+            )
             print(f"Execution mode: {workflow_state.execution_mode}")
             print(f"Target: {workflow_state.target}")
-            print(f"Content & Evidence: {before.score}/100 -> {after.score}/100")
+            if has_readme:
+                print(f"Core Documentation: {before.to_dict()['core_score']}/70 -> {after.to_dict()['core_score']}/70")
+                print(f"Showcase Enhancement: {before.to_dict()['presentation_score']}/30 -> {after.to_dict()['presentation_score']}/30")
+                print(f"Overall README score: {before.score}/100 -> {after.score}/100")
+            else:
+                print(f"Core Documentation readiness: {after.to_dict()['core_score']}/70")
+                print(f"Showcase Enhancement: {after.to_dict()['presentation_score']}/30")
             print(f"Reading Experience: {before_experience.score}/100 -> {after_experience.score}/100")
             print(f"Publish readiness: {'Ready for review' if result['publish_ready'] else 'Not ready'}")
             if result.get("preview"):
@@ -987,11 +1123,13 @@ Examples:
         output_path = Path(args.output)
         if not output_path.is_absolute():
             output_path = project_path / output_path
-        if not input_path.exists():
+        # A missing input is a valid baseline for first-time README creation
+        # when the candidate is supplied via --compare.
+        if not input_path.exists() and not args.compare:
             print(f"❌ Input file not found: {input_path}", file=sys.stderr)
             sys.exit(1)
 
-        md_content = input_path.read_text(encoding="utf-8")
+        md_content = input_path.read_text(encoding="utf-8") if input_path.exists() else ""
         compare_path = Path(args.compare) if args.compare else None
         if compare_path and not compare_path.is_absolute():
             compare_path = project_path / compare_path
@@ -1000,6 +1138,12 @@ Examples:
             sys.exit(1)
         html = _preview_html(md_content, input_path.name, compare_path.read_text(encoding="utf-8") if compare_path else "", compare_path.name if compare_path else "")
         output_path.write_text(html, encoding="utf-8")
+        if args.opened:
+            try:
+                state_path = mark_preview_opened(project_path)
+                print(f"✅ Preview marked opened → {state_path}")
+            except (FileNotFoundError, ValueError) as exc:
+                print(f"⚠️  Preview was rendered but not marked opened: {exc}", file=sys.stderr)
         print(f"👀 Preview saved → {output_path.resolve()}")
         print(f"   Open in browser: file://{output_path.resolve()}")
 

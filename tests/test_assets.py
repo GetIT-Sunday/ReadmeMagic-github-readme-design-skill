@@ -65,6 +65,16 @@ description = "A small reusable project."
             self.assertEqual(len(manifest.assets), 3)
             self.assertTrue(all(asset.status == "disabled" for asset in manifest.assets))
 
+    def test_native_mode_records_host_generation_request_without_fabricating_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            metadata = inspect_project(project)
+            config = load_image_config(project, overrides={"mode": "native"})
+            manifest = materialize_assets(project, plan_assets(metadata, config), config)
+            self.assertEqual({asset.status for asset in manifest.assets}, {"native_required"})
+            self.assertTrue((project / "artifacts" / "prompts" / "architecture.prompt.md").exists())
+            self.assertFalse((project / "assets" / "generated" / "architecture.png").exists())
+
     def test_rejects_output_directory_outside_project(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)

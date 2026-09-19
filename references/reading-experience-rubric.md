@@ -16,8 +16,10 @@ Score reading experience independently from content/evidence completeness. Do no
 ## Quality Gate
 
 - Require at least 80/100.
-- Also require content/evidence >= 85/100; never average the scores.
+- Also require the core documentation score >= 56/70; showcase enhancement is reported
+  separately and is not a hard prerequisite. Never average the scores.
 - Block publication for broken primary navigation, repository-mismatched community assets, invalid local visuals, or severe duplicate structure.
+- A visually tidy README is not automatically excellent: if the first screen is text-only, if runtime evidence is absent, or if a claimed architecture is only a basic Mermaid flowchart, report those as presentation defects even when the reading-experience score is high.
 - Fix only the section or presentation layer named by a finding. Preserve strong, unrelated project-owned design.
 
 ## Finding Classes

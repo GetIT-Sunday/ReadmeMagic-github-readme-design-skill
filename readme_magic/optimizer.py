@@ -259,9 +259,9 @@ def _showcase(
         return existing_showcase
     if not assets:
         message = (
-            "暂无项目截图。建议补充一张真实界面、运行结果或架构图，让读者无需阅读代码即可理解项目。"
+            "当前仓库没有可直接复用的展示资产；请先使用下方快速开始命令验证项目，再补充真实运行结果或架构图。"
             if is_zh
-            else "No project screenshot is available yet. Add a real interface, output, or architecture image so readers can understand the project before reading the code."
+            else "No reusable showcase asset was found in this repository. Use the Quick Start command to verify the project, then add a real output or architecture figure if it improves understanding."
         )
         return f"> {message}"
     if len(assets) == 1:
@@ -437,14 +437,25 @@ def render_optimized_readme(
 
     if existing and _has_polished_header(existing):
         current_report = analyze_readme(existing, metadata.project_type)
-        if current_report.score >= 95 and not runtime_demo and not _has_materialized_asset(asset_manifest):
+        current_quality = current_report.to_dict()
+        core_checks = {
+            "first_screen", "features", "type_structure", "installation",
+            "first_success", "documentation", "contributing", "license", "complete",
+        }
+        has_core_findings = any(item.code in core_checks for item in current_report.findings)
+        if (
+            current_quality["core_score"] >= 63
+            and not has_core_findings
+            and not runtime_demo
+            and not _has_materialized_asset(asset_manifest)
+        ):
             # Preserve the project-owned design, but do not freeze deterministic
             # reading-experience defects merely because completeness is high.
             experience = analyze_experience(existing, metadata.repo)
             if not experience.findings:
                 return existing
             return apply_safe_experience_fixes(existing, metadata.repo)
-        if current_report.score >= 85:
+        if current_quality["core_quality_gate"]:
             conservative = _render_conservative_readme(
                 metadata,
                 existing,
@@ -556,6 +567,7 @@ def optimize_project(
         transcript_path = capture_command(project, demo_command)
         runtime_demo = transcript_path.read_text(encoding="utf-8")
     readme = Path(metadata.readme_path) if metadata.readme_path else project / "README.md"
+    has_readme = bool(metadata.readme_path and readme.exists())
     existing = readme.read_text(encoding="utf-8") if readme.exists() else ""
     before = analyze_readme(existing, metadata.project_type)
     candidate = render_optimized_readme(metadata, existing, lang, asset_manifest=manifest, runtime_demo=runtime_demo)
@@ -566,7 +578,7 @@ def optimize_project(
         if readme.exists():
             shutil.copy2(readme, readme.with_name(readme.name + ".bak"))
     else:
-        destination = output or project / "README.optimized.md"
+        destination = output or project / ("README.optimized.md" if has_readme else "README.generated.md")
         if not destination.is_absolute():
             destination = project / destination
     destination.parent.mkdir(parents=True, exist_ok=True)

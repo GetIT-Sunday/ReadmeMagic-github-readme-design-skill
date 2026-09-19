@@ -38,6 +38,18 @@ hello = "hello:main"
                 "showcase_evidence", {finding.code for finding in after.findings}
             )
 
+    def test_missing_readme_writes_generated_candidate_without_creating_baseline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            destination, before, after, metadata = optimize_project(project, lang="en")
+
+            self.assertEqual(destination.name, "README.generated.md")
+            self.assertIsNone(metadata.readme_path)
+            self.assertGreaterEqual(before.score, 0)
+            self.assertFalse((project / "README.md").exists())
+            self.assertTrue((project / "README.generated.md").exists())
+            self.assertNotIn("No project screenshot is available yet", destination.read_text(encoding="utf-8"))
+
     def test_apply_backs_up_original(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
@@ -115,7 +127,7 @@ hello = "hello:main"
             self.assertEqual(content.count("Original banner"), 1)
             self.assertNotIn("img.shields.io/badge/version", content)
 
-    def test_very_high_quality_readme_is_allowed_to_be_a_noop(self):
+    def test_very_high_quality_readme_still_needs_polished_architecture_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
             (project / "assets").mkdir()
@@ -162,7 +174,8 @@ Issues and pull requests are welcome.
 MIT
 """
             content = render_optimized_readme(inspect_project(project), existing, lang="en")
-            self.assertEqual(content, existing)
+            self.assertNotEqual(content, existing)
+            self.assertIn("Command Reference", content)
 
     def test_high_quality_readme_only_repairs_reading_experience_defects(self):
         with tempfile.TemporaryDirectory() as directory:

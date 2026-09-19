@@ -41,6 +41,88 @@ class CliTests(unittest.TestCase):
             self.assertEqual(result["interaction"]["events"][-1]["status"], "awaiting_user_review")
             self.assertTrue(Path(result["interaction_card"]).exists())
 
+    def test_optimize_missing_readme_uses_creation_workflow_and_no_baseline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "pyproject.toml").write_text(
+                """[project]
+name = "demo"
+version = "0.1.0"
+description = "A small command line demo."
+
+[project.scripts]
+demo = "demo:main"
+""",
+                encoding="utf-8",
+            )
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+
+            self.assertEqual(result["workflow_kind"], "create")
+            self.assertFalse(result["baseline_available"])
+            self.assertIsNone(result["before"])
+            self.assertTrue(result["output"].endswith("README.generated.md"))
+            self.assertEqual(result["interaction"]["workflow_kind"], "create")
+            self.assertFalse(result["interaction"]["baseline_available"])
+            self.assertTrue(Path(result["preview"]["path"]).exists())
+            self.assertFalse((project / "README.md").exists())
+
+    def test_preview_lifecycle_requires_open_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "README.md").write_text("# Demo\n\nOriginal.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["interaction"]["status"], "preview_pending_open")
+            with patch("sys.argv", ["readme-magic", "preview", "-p", str(project), "-i", "README.md", "--compare", "README.optimized.md", "--output", "opened.html", "--opened"]):
+                with redirect_stdout(io.StringIO()):
+                    main()
+            state = json.loads((project / "artifacts" / "workflow-state.json").read_text(encoding="utf-8"))
+            card = json.loads((project / "artifacts" / "interaction-card.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["preview_status"], "opened")
+            self.assertEqual(state["status"], "awaiting_user_review")
+            self.assertEqual(state["next_actions"], ["apply", "revise", "keep_original"])
+            self.assertEqual(card["status"], "awaiting_user_review")
+            self.assertIn("apply", card["next_actions"])
+
+    def test_optimize_exposes_host_action_until_preview_is_opened(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "README.md").write_text("# Demo\n\nOriginal.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+            action = result["interaction"]["host_action"]
+            self.assertEqual(action["type"], "open_file")
+            self.assertEqual(action["tool"], "mcp__codex_app__open_in_codex")
+            self.assertIn("--opened", action["then"])
+
+    def test_native_visuals_expose_generation_actions_without_fabricating_assets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "demo"
+            project.mkdir()
+            (project / "README.md").write_text("# Demo\n\nOriginal.\n", encoding="utf-8")
+            with patch("sys.argv", ["readme-magic", "optimize", "-p", str(project), "--image-mode", "native", "--json"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    main()
+            result = json.loads(output.getvalue())
+            actions = result["interaction"]["visual_actions"]
+            self.assertEqual(len(actions), 3)
+            self.assertTrue(all(item["tool"] == "image_generation" for item in actions))
+            self.assertTrue(all(item["save_to"].startswith(str(project.resolve())) for item in actions))
+            self.assertEqual(
+                {asset["status"] for asset in result["asset_manifest"]["assets"]},
+                {"native_required"},
+            )
+
     def test_module_entrypoint_and_check_install_are_available(self):
         from readme_magic import __main__ as module_entry
         self.assertTrue(callable(module_entry.main))

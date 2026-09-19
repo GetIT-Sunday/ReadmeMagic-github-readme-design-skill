@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- First-README creation flow: repositories without `README.md` now produce a
+  reviewable `README.generated.md` candidate without a fabricated baseline score.
+- Installation verification now checks the package import, module entrypoint,
+  Markdown renderer, and optional shell entrypoint separately.
 - Explainable project profiles with type, confidence, and classification reasons.
 - Traceable evidence items for commands, visuals, documentation, license, contribution, and security files.
 - `readme-magic inspect` with human-readable and JSON output.
@@ -30,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Separate content, presentation, onboarding, and trust dimensions in the README score.
 
 ### Changed
+
+- The interactive workflow now distinguishes `optimize` and `create` runs while
+  keeping the same simple review actions and preview lifecycle.
+- Showcase evidence remains an optional enhancement track; missing visuals do not
+  make a technically usable README look like an unfinished document.
 
 - Packaged templates inside `readme_magic/templates` so wheels include them.
 - Synchronized the package and CLI version at 2.0.0.
